@@ -163,7 +163,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Alertas de Spam</Label>
-                      <p className="text-sm text-muted-foreground">Quando spam rate > 0.1%</p>
+                      <p className="text-sm text-muted-foreground">Quando spam rate {'>'}  0.1%</p>
                     </div>
                     <Switch 
                       checked={notifications.spamAlerts} 

@@ -113,7 +113,7 @@ export default function WarmUp() {
         </div>
         <div className="flex items-center space-x-2">
           <label htmlFor="fallback-mode" className="text-sm font-medium">
-            Fallback automático (spam > 0.15%)
+            Fallback automático (spam {'>'}  0.15%)
           </label>
           <Switch
             id="fallback-mode"

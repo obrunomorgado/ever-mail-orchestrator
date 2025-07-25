@@ -6,7 +6,7 @@ import {
   Workflow,
   TrendingUp,
   Shield,
-  HeatMap,
+  Activity,
   Settings,
   Mail
 } from "lucide-react"
@@ -31,7 +31,7 @@ const navigationItems = [
   { title: "Automations", url: "/automations", icon: Workflow },
   { title: "Warm-up Wizard", url: "/warm-up", icon: TrendingUp },
   { title: "Deliverability Guardrails", url: "/guardrails", icon: Shield },
-  { title: "Reports", url: "/reports", icon: HeatMap },
+  { title: "Reports", url: "/reports", icon: Activity },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
 
