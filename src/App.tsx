@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Planner from "./pages/Planner";
 import Audiences from "./pages/Audiences";
 import Automations from "./pages/Automations";
+import AutomationsFlow from "./pages/AutomationsFlow";
 import WarmUp from "./pages/WarmUp";
 import Guardrails from "./pages/Guardrails";
 import Reports from "./pages/Reports";
@@ -40,6 +41,7 @@ const App = () => (
                     <Route path="/planner" element={<Planner />} />
                     <Route path="/audiences" element={<Audiences />} />
                     <Route path="/automations" element={<Automations />} />
+                    <Route path="/automations-flow" element={<AutomationsFlow />} />
                     <Route path="/warm-up" element={<WarmUp />} />
                     <Route path="/guardrails" element={<Guardrails />} />
                     <Route path="/reports" element={<Reports />} />

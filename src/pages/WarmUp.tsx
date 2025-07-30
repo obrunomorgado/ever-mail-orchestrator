@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -63,7 +63,66 @@ const ipStatus = [
 
 export default function WarmUp() {
   const [fallbackEnabled, setFallbackEnabled] = useState(true)
+  const [realTimeData, setRealTimeData] = useState(warmupPhases)
+  const [realTimeIPs, setRealTimeIPs] = useState(ipStatus)
   const { toast } = useToast()
+
+  // Simulate real-time progress updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRealTimeData(prevPhases => 
+        prevPhases.map(phase => {
+          if (phase.status === 'active') {
+            const newProgress = Math.min(100, phase.progress + Math.random() * 2)
+            const newBounce = Math.max(0.5, Math.min(4, phase.currentMetrics.bounce + (Math.random() - 0.5) * 0.3))
+            const newSpam = Math.max(0.01, Math.min(0.2, phase.currentMetrics.spam + (Math.random() - 0.5) * 0.02))
+            
+            return {
+              ...phase,
+              progress: newProgress,
+              currentMetrics: {
+                bounce: newBounce,
+                spam: newSpam
+              }
+            }
+          }
+          return phase
+        })
+      )
+
+      setRealTimeIPs(prevIPs =>
+        prevIPs.map(ip => ({
+          ...ip,
+          volume: Math.max(50000, Math.min(200000, ip.volume + (Math.random() - 0.5) * 5000)),
+          bounce: Math.max(0.5, Math.min(5, ip.bounce + (Math.random() - 0.5) * 0.2)),
+          spam: Math.max(0.01, Math.min(0.3, ip.spam + (Math.random() - 0.5) * 0.02)),
+          status: ip.bounce > 3.5 ? 'warning' : 'healthy'
+        }))
+      )
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Auto-alerts for high bounce rates
+  useEffect(() => {
+    realTimeIPs.forEach(ip => {
+      if (ip.bounce > 3.5 && ip.status === 'warning') {
+        toast({
+          title: "⚠️ Bounce Rate Alto",
+          description: `IP ${ip.ip}: ${ip.bounce.toFixed(1)}% bounce rate`,
+          variant: "destructive",
+        })
+      }
+      if (ip.spam > 0.15) {
+        toast({
+          title: "🚨 Spam Rate Crítico",
+          description: `IP ${ip.ip}: ${(ip.spam * 100).toFixed(2)}% spam rate`,
+          variant: "destructive",
+        })
+      }
+    })
+  }, [realTimeIPs, toast])
 
   const getPhaseIcon = (status: string) => {
     switch (status) {
@@ -96,10 +155,26 @@ export default function WarmUp() {
     setFallbackEnabled(enabled)
     toast({
       title: enabled ? "Fallback Ativado" : "Fallback Desativado",
-            description: enabled 
-              ? "Rota compartilhada será usada se spam {'>'}0.15%" 
-              : "Warm-up continuará mesmo com spam alto",
+      description: enabled 
+        ? "Rota compartilhada será usada se spam > 0.15%" 
+        : "Warm-up continuará mesmo com spam alto",
       variant: enabled ? "default" : "destructive"
+    })
+  }
+
+  const handlePauseWarmup = () => {
+    toast({
+      title: "🛑 Warm-up Pausado",
+      description: "Todos os IPs foram pausados temporariamente",
+      variant: "destructive",
+    })
+  }
+
+  const handleForcedFallback = () => {
+    toast({
+      title: "🚨 Fallback Forçado",
+      description: "Migração para rota compartilhada iniciada",
+      variant: "destructive",
     })
   }
 
@@ -133,10 +208,10 @@ export default function WarmUp() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {warmupPhases.map((phase, index) => (
+            {realTimeData.map((phase, index) => (
               <div key={phase.id} className="relative">
                 {/* Linha conectora */}
-                {index < warmupPhases.length - 1 && (
+                {index < realTimeData.length - 1 && (
                   <div className="absolute left-6 top-12 w-0.5 h-16 bg-border" />
                 )}
                 
@@ -200,7 +275,7 @@ export default function WarmUp() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {ipStatus.map((ip) => (
+            {realTimeIPs.map((ip) => (
               <Card key={ip.ip} className="border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
@@ -218,18 +293,18 @@ export default function WarmUp() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Volume/dia:</span>
-                      <span className="font-medium">{ip.volume.toLocaleString()}</span>
+                      <span className="font-medium">{Math.round(ip.volume).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Bounce Rate:</span>
                       <span className={`font-medium ${ip.bounce > 3 ? 'text-warning' : 'text-success'}`}>
-                        {ip.bounce}%
+                        {ip.bounce.toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Spam Rate:</span>
                       <span className={`font-medium ${ip.spam > 0.1 ? 'text-warning' : 'text-success'}`}>
-                        {ip.spam}%
+                        {(ip.spam * 100).toFixed(2)}%
                       </span>
                     </div>
                   </div>
@@ -254,15 +329,23 @@ export default function WarmUp() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button variant="outline" className="h-auto p-4 justify-start">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 justify-start border-warning hover:bg-warning/10"
+              onClick={handlePauseWarmup}
+            >
               <div>
-                <div className="font-semibold">Pausar Warm-up</div>
+                <div className="font-semibold text-warning">Pausar Warm-up</div>
                 <div className="text-sm text-muted-foreground">Interromper todos os IPs temporariamente</div>
               </div>
             </Button>
-            <Button variant="outline" className="h-auto p-4 justify-start">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 justify-start border-destructive hover:bg-destructive/10"
+              onClick={handleForcedFallback}
+            >
               <div>
-                <div className="font-semibold">Fallback Forçado</div>
+                <div className="font-semibold text-destructive">Fallback Forçado</div>
                 <div className="text-sm text-muted-foreground">Migrar para rota compartilhada imediatamente</div>
               </div>
             </Button>

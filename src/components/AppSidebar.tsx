@@ -29,6 +29,7 @@ const navigationItems = [
   { title: "Planner", url: "/planner", icon: Calendar },
   { title: "Audiences", url: "/audiences", icon: Users },
   { title: "Automations", url: "/automations", icon: Workflow },
+  { title: "Flow Builder", url: "/automations-flow", icon: Workflow },
   { title: "Warm-up Wizard", url: "/warm-up", icon: TrendingUp },
   { title: "Deliverability Guardrails", url: "/guardrails", icon: Shield },
   { title: "Reports", url: "/reports", icon: Activity },
