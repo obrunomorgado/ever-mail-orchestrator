@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Activity, Download, TrendingUp, AlertTriangle, Filter } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+// Fixed HeatMap import issue
 
 // Dados demo para o heat-map
 const segments = ['Cartões VIP', 'Hot eRPM', 'Opened_3', 'Clicked_1', 'Newsletter', 'Inativos']
