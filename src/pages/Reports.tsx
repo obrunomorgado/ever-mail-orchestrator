@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { HeatMap, Download, TrendingUp, AlertTriangle, Filter } from "lucide-react"
+import { Activity, Download, TrendingUp, AlertTriangle, Filter } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 // Dados demo para o heat-map
@@ -66,7 +66,7 @@ export default function Reports() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <HeatMap className="h-5 w-5" />
+            <Activity className="h-5 w-5" />
             Heat-Map: Segmentos × Dia da Semana
           </CardTitle>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export default function Reports() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <HeatMap className="h-8 w-8 text-info" />
+              <Activity className="h-8 w-8 text-info" />
               <div>
                 <p className="text-sm text-muted-foreground">Melhor Dia</p>
                 <p className="font-semibold">Sexta-feira</p>
