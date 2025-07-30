@@ -5,6 +5,8 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { useNavigate } from "react-router-dom"
 import { AlertTriangle, TrendingUp, Mail, DollarSign, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useData } from "@/contexts/DataContext"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Dados demo
 const volumeData = [
@@ -18,17 +20,19 @@ const volumeData = [
   { hour: '21h', volume: 180000 },
 ]
 
-const kpiData = {
-  enviosHoje: 2847000,
-  eRPMedio: 142.50,
-  spamRate: 0.06,
-  receitaTotal: 418750,
-  metaDiaria: 3000000,
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { totalContacts, dailyRevenue, avgERP, globalSpamRate, audiences, loading } = useData()
+  const isMobile = useIsMobile()
+
+  const kpiData = {
+    enviosHoje: Math.floor(totalContacts * 0.8), // 80% of contacts sent today
+    eRPMedio: avgERP,
+    spamRate: globalSpamRate,
+    receitaTotal: dailyRevenue,
+    metaDiaria: 3000000,
+  }
 
   const progressPercentage = (kpiData.enviosHoje / kpiData.metaDiaria) * 100
   const isSpamHigh = kpiData.spamRate > 0.1
@@ -63,7 +67,7 @@ export default function Dashboard() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
         <Card className="kpi-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="kpi-label">Envios Hoje</CardTitle>
@@ -147,7 +151,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/warm-up')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -166,7 +170,7 @@ export default function Dashboard() {
               <Mail className="h-8 w-8 text-accent" />
               <div>
                 <h3 className="font-semibold">Audiences Ativas</h3>
-                <p className="text-sm text-muted-foreground">23 listas, 3M contatos</p>
+                <p className="text-sm text-muted-foreground">{audiences.length} listas, {(totalContacts / 1000000).toFixed(1)}M contatos</p>
               </div>
             </div>
           </CardContent>

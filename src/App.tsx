@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { GlobalProvider } from "@/contexts/GlobalContext";
+import { DataProvider } from "@/contexts/DataContext";
 import { AppHeader } from "@/components/AppHeader";
 import Dashboard from "./pages/Dashboard";
 import Planner from "./pages/Planner";
@@ -26,7 +27,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="dark">
       <GlobalProvider>
-        <TooltipProvider>
+        <DataProvider>
+          <TooltipProvider>
           <Toaster />
           <Sonner />
         <BrowserRouter>
@@ -54,6 +56,7 @@ const App = () => (
           </SidebarProvider>
         </BrowserRouter>
         </TooltipProvider>
+        </DataProvider>
       </GlobalProvider>
     </ThemeProvider>
   </QueryClientProvider>

@@ -10,50 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Users, Plus, Search, HelpCircle, Tag, Database, Eye, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-// Dados demo
-const audiences = [
-  {
-    id: 1,
-    name: 'Cartões VIP',
-    rule: 'last_purchase < 30d AND purchase_amount > 500',
-    size: 120000,
-    updatedAt: '2 horas atrás',
-    type: 'dynamic'
-  },
-  {
-    id: 2,
-    name: 'Hot eRPM',
-    rule: 'avg_eRPM > 150 AND opened_last_7d = true',
-    size: 27000,
-    updatedAt: '15 min atrás',
-    type: 'dynamic'
-  },
-  {
-    id: 3,
-    name: 'Opened_3',
-    rule: 'opened_emails >= 3 AND last_open < 7d',
-    size: 45000,
-    updatedAt: '1 hora atrás',
-    type: 'dynamic'
-  },
-  {
-    id: 4,
-    name: 'Newsletter Subscribers',
-    rule: 'static_upload_2024_01_15',
-    size: 85000,
-    updatedAt: '5 dias atrás',
-    type: 'static'
-  }
-]
-
-const smartTags = [
-  { name: 'Opened_3', rule: 'opened >= 3', window: '7d', size: 45000, status: 'active' },
-  { name: 'Clicked_1', rule: 'clicked >= 1', window: '30d', size: 38000, status: 'active' },
-  { name: 'VIP_30d', rule: 'purchase_amount > 500', window: '30d', size: 22000, status: 'active' },
-  { name: 'Inativo_90d', rule: 'last_open > 90d', window: '90d', size: 156000, status: 'active' },
-  { name: 'Hot_eRPM', rule: 'avg_eRPM > 150', window: '7d', size: 27000, status: 'active' },
-]
+import { useData } from "@/contexts/DataContext"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export default function Audiences() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -66,10 +24,20 @@ export default function Audiences() {
   })
   const [dryRunResult, setDryRunResult] = useState<number | null>(null)
   const { toast } = useToast()
+  const { audiences, createAudience, loading } = useData()
+  const isMobile = useIsMobile()
 
   const filteredAudiences = audiences.filter(audience =>
     audience.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const smartTags = [
+    { name: 'Opened_3', rule: 'opened >= 3', window: '7d', size: 45000, status: 'active' },
+    { name: 'Clicked_1', rule: 'clicked >= 1', window: '30d', size: 38000, status: 'active' },
+    { name: 'VIP_30d', rule: 'purchase_amount > 500', window: '30d', size: 22000, status: 'active' },
+    { name: 'Inativo_90d', rule: 'last_open > 90d', window: '90d', size: 156000, status: 'active' },
+    { name: 'Hot_eRPM', rule: 'avg_eRPM > 150', window: '7d', size: 27000, status: 'active' },
+  ]
 
   const handleDryRun = () => {
     // Simula um dry run
@@ -82,10 +50,16 @@ export default function Audiences() {
   }
 
   const handleSaveAudience = () => {
-    toast({
-      title: "Audience Criada! ✓",
-      description: "Nova audience dinâmica salva com sucesso",
+    const rule = `${ruleBuilder.metric} ${ruleBuilder.operator} ${ruleBuilder.value} ${ruleBuilder.window ? `AND last_${ruleBuilder.window}` : ''}`
+    
+    createAudience({
+      name: `Custom Audience ${Date.now()}`,
+      rule,
+      type: 'dynamic',
+      eRPM: Math.random() * 200 + 50,
+      health: 'good'
     })
+    
     setShowNewAudienceModal(false)
     setRuleBuilder({ metric: '', operator: '', value: '', window: '' })
     setDryRunResult(null)
@@ -288,7 +262,7 @@ export default function Audiences() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {audience.updatedAt}
+                      {audience.updatedAt.toLocaleString('pt-BR')}
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm">
@@ -311,7 +285,7 @@ export default function Audiences() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
               {smartTags.map((tag) => (
                 <Card key={tag.name} className="border-border hover:border-primary/50 transition-colors">
                   <CardContent className="p-4">

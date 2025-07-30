@@ -7,84 +7,98 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
 import { Clock, Users, DollarSign, AlertTriangle, CheckCircle, Calendar } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useData } from "@/contexts/DataContext"
+import { useGlobal } from "@/contexts/GlobalContext"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { FrequencyCapWidget } from "@/components/FrequencyCapWidget"
 
-// Dados demo
 const timeSlots = ['06h', '09h', '12h', '15h', '18h', '21h']
-const segments = [
-  {
-    id: 'vip-cards',
-    name: 'Cartões VIP',
-    size: 120000,
-    eRPM: 150.0,
-    health: 'excellent',
-    scheduled: false,
-    timeSlot: null
-  },
-  {
-    id: 'hot-eRPM',
-    name: 'Hot eRPM',
-    size: 27000,
-    eRPM: 180.0,
-    health: 'good',
-    scheduled: false,
-    timeSlot: null
-  },
-  {
-    id: 'opened-3',
-    name: 'Opened_3',
-    size: 45000,
-    eRPM: 95.0,
-    health: 'warning',
-    scheduled: false,
-    timeSlot: null
-  },
-  {
-    id: 'clicked-1',
-    name: 'Clicked_1',
-    size: 38000,
-    eRPM: 210.0,
-    health: 'excellent',
-    scheduled: false,
-    timeSlot: null
-  }
-]
-
-const overlapData = [
-  { segment1: 'Cartões VIP', segment2: 'Hot eRPM', overlap: 45 },
-  { segment1: 'Opened_3', segment2: 'Clicked_1', overlap: 25 },
-]
 
 export default function Planner() {
-  const [scheduledSegments, setScheduledSegments] = useState(segments)
   const [metaDiaria, setMetaDiaria] = useState([3000000])
   const [showOverlapModal, setShowOverlapModal] = useState(false)
+  const [scheduledSegments, setScheduledSegments] = useState<any[]>([])
   const { toast } = useToast()
+  const { audiences, validateFrequencyCap, getOverlapPercentage, scheduleCampaign } = useData()
+  const { state } = useGlobal()
+  const isMobile = useIsMobile()
 
-  const totalScheduled = scheduledSegments.filter(s => s.scheduled).length
-  const totalClicks = scheduledSegments
-    .filter(s => s.scheduled)
-    .reduce((sum, s) => sum + (s.size * s.eRPM / 1000 * 0.02), 0) // Estimativa 2% CTR
+  // Convert audiences to segments format with scheduling state
+  const segments = audiences.map(audience => ({
+    id: audience.id,
+    name: audience.name,
+    size: audience.size,
+    eRPM: audience.eRPM,
+    health: audience.health,
+    scheduled: scheduledSegments.some(s => s.id === audience.id),
+    timeSlot: scheduledSegments.find(s => s.id === audience.id)?.timeSlot || null
+  }))
+
+  const overlapData = audiences.slice(0, 2).map((aud1, i) => {
+    const aud2 = audiences[i + 1]
+    return aud2 ? {
+      segment1: aud1.name,
+      segment2: aud2.name,
+      overlap: getOverlapPercentage(aud1.id, aud2.id)
+    } : null
+  }).filter(Boolean)
+
+  const totalScheduled = scheduledSegments.length
+  const totalClicks = scheduledSegments.reduce((sum, s) => {
+    const segment = segments.find(seg => seg.id === s.id)
+    return segment ? sum + (segment.size * segment.eRPM / 1000 * 0.02) : sum
+  }, 0) // Estimativa 2% CTR
 
   const handleDrop = (result: any) => {
     if (!result.destination) return
 
     const segmentId = result.draggableId
     const timeSlot = result.destination.droppableId
+    const segment = segments.find(s => s.id === segmentId)
 
-    setScheduledSegments(prev => prev.map(segment => 
-      segment.id === segmentId 
-        ? { ...segment, scheduled: true, timeSlot }
-        : segment
-    ))
+    if (!segment) return
+
+    // Validate frequency cap
+    if (!validateFrequencyCap(segmentId, timeSlot)) {
+      toast({
+        title: "Frequency Cap violado!",
+        description: `Não é possível agendar para ${timeSlot} - limite de ${state.frequencyCapValue} por 24h`,
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Check for high overlap
+    const existingSegments = scheduledSegments.filter(s => s.timeSlot === timeSlot)
+    for (const existing of existingSegments) {
+      const overlap = getOverlapPercentage(segmentId, existing.id)
+      if (overlap > 30) {
+        toast({
+          title: "Alto overlap detectado!",
+          description: `${overlap}% de overlap com ${existing.name}`,
+          variant: "destructive"
+        })
+        return
+      }
+    }
+
+    setScheduledSegments(prev => {
+      const newSegment = { id: segmentId, timeSlot, scheduled: true }
+      const existing = prev.find(s => s.id === segmentId)
+      if (existing) {
+        return prev.map(s => s.id === segmentId ? newSegment : s)
+      }
+      return [...prev, newSegment]
+    })
 
     toast({
       title: "Segmento agendado!",
-      description: `${segments.find(s => s.id === segmentId)?.name} agendado para ${timeSlot}`,
+      description: `${segment.name} agendado para ${timeSlot}`,
     })
   }
 
   const handleLaunchDay = () => {
-    const scheduledCount = scheduledSegments.filter(s => s.scheduled).length
+    const scheduledCount = scheduledSegments.length
     if (scheduledCount === 0) {
       toast({
         title: "Nenhum envio agendado",
@@ -93,6 +107,23 @@ export default function Planner() {
       })
       return
     }
+
+    // Schedule campaigns
+    scheduledSegments.forEach(segment => {
+      const audience = audiences.find(a => a.id === segment.id)
+      if (audience) {
+        scheduleCampaign({
+          name: `${audience.name} - ${segment.timeSlot}`,
+          audienceId: audience.id,
+          scheduledTime: segment.timeSlot,
+          sent: 0,
+          opened: 0,
+          clicked: 0,
+          revenue: 0,
+          spamRate: 0
+        })
+      }
+    })
 
     toast({
       title: "Agendado! 🚀",
@@ -132,6 +163,9 @@ export default function Planner() {
         </Button>
       </div>
 
+      {/* Frequency Cap Widget */}
+      <FrequencyCapWidget />
+
       {/* Stats Bar */}
       <Card>
         <CardContent className="p-4">
@@ -166,7 +200,7 @@ export default function Planner() {
 
       {/* Drag and Drop Grid */}
       <DragDropContext onDragEnd={handleDrop}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
           {/* Available Segments */}
           <Card>
             <CardHeader>
@@ -176,7 +210,7 @@ export default function Planner() {
               <Droppable droppableId="available-segments">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                    {scheduledSegments.filter(s => !s.scheduled).map((segment, index) => (
+                    {segments.filter(s => !s.scheduled).map((segment, index) => (
                       <Draggable key={segment.id} draggableId={segment.id} index={index}>
                         {(provided) => (
                           <div
@@ -252,7 +286,7 @@ export default function Planner() {
               </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 {timeSlots.map((slot) => (
                   <Droppable key={slot} droppableId={slot}>
                     {(provided, snapshot) => (
@@ -269,14 +303,17 @@ export default function Planner() {
                         </div>
                         {scheduledSegments
                           .filter(s => s.timeSlot === slot)
-                          .map((segment, index) => (
-                            <div key={segment.id} className="bg-primary/10 border border-primary/20 rounded p-2 text-xs">
-                              <div className="font-medium">{segment.name}</div>
-                              <div className="text-muted-foreground">
-                                {segment.size.toLocaleString('pt-BR')} contatos
+                          .map((scheduled) => {
+                            const segment = segments.find(s => s.id === scheduled.id)
+                            return segment ? (
+                              <div key={scheduled.id} className="bg-primary/10 border border-primary/20 rounded p-2 text-xs">
+                                <div className="font-medium">{segment.name}</div>
+                                <div className="text-muted-foreground">
+                                  {segment.size.toLocaleString('pt-BR')} contatos
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ) : null
+                          })}
                         {provided.placeholder}
                       </div>
                     )}

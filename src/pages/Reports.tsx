@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useData } from "@/contexts/DataContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +33,7 @@ const templatePerformance = {
 export default function Reports() {
   const [selectedCell, setSelectedCell] = useState<any>(null)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const isMobile = useIsMobile()
 
   const getCellColor = (eRPM: number, spam: number) => {
     if (spam > 0.15) return 'bg-destructive/80 text-destructive-foreground' // Vermelho para spam alto
@@ -221,7 +224,7 @@ export default function Reports() {
       </Dialog>
 
       {/* Cards de KPIs Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-4'}`}>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
