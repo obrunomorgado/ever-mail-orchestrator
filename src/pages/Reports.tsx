@@ -89,61 +89,86 @@ export default function Reports() {
           </div>
         </CardHeader>
         <CardContent>
-          <TooltipProvider>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left p-2 font-medium">Segmento</th>
-                    {weekDays.map(day => (
-                      <th key={day} className="text-center p-2 font-medium min-w-24">{day}</th>
+          {/* Mobile-optimized heatmap */}
+          {isMobile ? (
+            <div className="space-y-4">
+              {heatMapData.map((row) => (
+                <Card key={row.segment} className="p-4">
+                  <h4 className="font-medium mb-3">{row.segment}</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(row).slice(1).map(([day, data]: [string, any]) => (
+                      <div
+                        key={day}
+                        className={`p-2 text-center cursor-pointer rounded ${getCellColor(data.eRPM, data.spam)}`}
+                        onClick={() => handleCellClick(row.segment, day, data)}
+                      >
+                        <div className="text-xs font-medium">{day.slice(0, 3)}</div>
+                        <div className="text-xs font-bold">R${data.eRPM}</div>
+                        <div className="text-xs opacity-90">{(data.spam * 100).toFixed(1)}%</div>
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatMapData.map((row) => (
-                    <tr key={row.segment}>
-                      <td className="p-2 font-medium">{row.segment}</td>
-                      {Object.entries(row).slice(1).map(([day, data]: [string, any]) => (
-                        <td key={day} className="p-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className={`p-2 rounded cursor-pointer transition-all hover:scale-105 hover:shadow-md ${getCellColor(data.eRPM, data.spam)}`}
-                                onClick={() => handleCellClick(row.segment, day, data)}
-                              >
-                                <div className="text-center">
-                                  <div className="text-sm font-bold">R${data.eRPM}</div>
-                                  <div className="text-xs opacity-90">{(data.spam * 100).toFixed(1)}%</div>
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-1">
-                                <p className="font-semibold">{row.segment} - {day}</p>
-                                <div className="grid grid-cols-3 gap-3 text-xs">
-                                  <div>
-                                    <p className="text-success">eRPM: R${data.eRPM}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-destructive">Spam: {(data.spam * 100).toFixed(1)}%</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-warning">Rev: R${data.revenue}</p>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Clique para detalhes</p>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </td>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            /* Desktop heatmap */
+            <TooltipProvider>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2 font-medium">Segmento</th>
+                      {weekDays.map(day => (
+                        <th key={day} className="text-center p-2 font-medium min-w-24">{day}</th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </TooltipProvider>
+                  </thead>
+                  <tbody>
+                    {heatMapData.map((row) => (
+                      <tr key={row.segment}>
+                        <td className="p-2 font-medium">{row.segment}</td>
+                        {Object.entries(row).slice(1).map(([day, data]: [string, any]) => (
+                          <td key={day} className="p-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`p-2 rounded cursor-pointer transition-all hover:scale-105 hover:shadow-md ${getCellColor(data.eRPM, data.spam)}`}
+                                  onClick={() => handleCellClick(row.segment, day, data)}
+                                >
+                                  <div className="text-center">
+                                    <div className="text-sm font-bold">R${data.eRPM}</div>
+                                    <div className="text-xs opacity-90">{(data.spam * 100).toFixed(1)}%</div>
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="space-y-1">
+                                  <p className="font-semibold">{row.segment} - {day}</p>
+                                  <div className="grid grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                      <p className="text-success">eRPM: R${data.eRPM}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-destructive">Spam: {(data.spam * 100).toFixed(1)}%</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-warning">Rev: R${data.revenue}</p>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">Clique para detalhes</p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TooltipProvider>
+          )}
         </CardContent>
       </Card>
 

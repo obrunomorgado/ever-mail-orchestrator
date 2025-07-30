@@ -259,7 +259,7 @@ export default function AutomationsFlow() {
                 Canvas de Automation
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 h-[520px]">
+            <CardContent className="p-0 h-[400px] md:h-[520px]">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -270,9 +270,14 @@ export default function AutomationsFlow() {
                 nodeTypes={nodeTypes}
                 fitView
                 className="bg-muted/20"
+                panOnDrag
+                panOnScroll
+                zoomOnScroll
+                zoomOnPinch
+                deleteKeyCode={null}
               >
-                <Controls />
-                <MiniMap nodeColor="#94a3b8" nodeStrokeColor="#475569" />
+                <Controls className="hidden md:flex" />
+                <MiniMap nodeColor="#94a3b8" nodeStrokeColor="#475569" className="hidden md:block" />
                 <Background />
               </ReactFlow>
             </CardContent>

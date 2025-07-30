@@ -311,6 +311,13 @@ export default function Audiences() {
                 </Card>
               ))}
             </div>
+            {smartTags.length > 6 && (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  Performance optimized - showing key tags first
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

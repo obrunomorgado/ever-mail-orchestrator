@@ -24,13 +24,20 @@ export function FrequencyCapWidget() {
   useEffect(() => {
     if (isViolation) {
       toast({
-        title: "Frequency Cap Violado!",
-        description: `${currentFrequency}/${state.frequencyCapValue} envios nas últimas 24h`,
+        title: "⚠️ Frequency Cap Violation",
+        description: `Current frequency (${currentFrequency}) exceeds limit (${state.frequencyCapValue}). Consider reducing scheduled campaigns.`,
         variant: "destructive",
+        duration: 8000,
+      })
+    } else if (isWarning) {
+      toast({
+        title: "⚡ Frequency Warning", 
+        description: `Approaching frequency limit: ${currentFrequency}/${state.frequencyCapValue} emails per day`,
+        variant: "default",
         duration: 5000,
       })
     }
-  }, [isViolation, currentFrequency, state.frequencyCapValue, toast])
+  }, [isViolation, isWarning, currentFrequency, state.frequencyCapValue, toast])
 
   const getStatusColor = () => {
     if (isViolation) return 'text-destructive'
