@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Settings as SettingsIcon, User, Bell, Shield, Database, Zap, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { FrequencyCapControl } from "@/components/FrequencyCapControl"
 
 export default function Settings() {
   const [notifications, setNotifications] = useState({
@@ -307,29 +308,14 @@ export default function Settings() {
 
         {/* Limites */}
         <TabsContent value="limits">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuração de Limites</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label>Frequency Cap (emails por contato em 24h)</Label>
-                  <div className="flex items-center gap-4 mt-2">
-                    <Slider
-                      value={frequencyCap}
-                      onValueChange={setFrequencyCap}
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="flex-1"
-                    />
-                    <Badge variant="outline">{frequencyCap[0]} emails</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Evita spam complaints por excesso de emails
-                  </p>
-                </div>
+          <div className="space-y-6">
+            <FrequencyCapControl />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Outras Configurações de Limite</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
 
                 <div>
                   <Label>API Rate Limit (requests/min)</Label>
@@ -348,20 +334,20 @@ export default function Settings() {
                     Limite de requisições para APIs externas
                   </p>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Volume Diário Máximo</Label>
-                  <Input defaultValue="5,000,000" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Volume Diário Máximo</Label>
+                    <Input defaultValue="5,000,000" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cool-down Padrão (horas)</Label>
+                    <Input defaultValue="24" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Cool-down Padrão (horas)</Label>
-                  <Input defaultValue="24" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Billing */}

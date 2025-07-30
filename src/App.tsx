@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalProvider } from "@/contexts/GlobalContext";
+import { AppHeader } from "@/components/AppHeader";
 import Dashboard from "./pages/Dashboard";
 import Planner from "./pages/Planner";
 import Audiences from "./pages/Audiences";
@@ -22,18 +24,16 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="dark">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+      <GlobalProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
         <BrowserRouter>
           <SidebarProvider>
             <div className="min-h-screen flex w-full">
               <AppSidebar />
               <div className="flex-1 flex flex-col">
-                <header className="h-12 flex items-center justify-between border-b border-border px-4">
-                  <SidebarTrigger />
-                  <ThemeToggle />
-                </header>
+                <AppHeader />
                 <main className="flex-1 p-6">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -51,7 +51,8 @@ const App = () => (
             </div>
           </SidebarProvider>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </GlobalProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

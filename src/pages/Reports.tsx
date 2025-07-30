@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Activity, Download, TrendingUp, AlertTriangle, Filter } from "lucide-react"
+import { Activity, Download, TrendingUp, AlertTriangle, Filter, BarChart3 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-// Fixed HeatMap import issue
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Dados demo para o heat-map
 const segments = ['Cartões VIP', 'Hot eRPM', 'Opened_3', 'Clicked_1', 'Newsletter', 'Inativos']
@@ -86,38 +86,61 @@ export default function Reports() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="text-left p-2 font-medium">Segmento</th>
-                  {weekDays.map(day => (
-                    <th key={day} className="text-center p-2 font-medium min-w-24">{day}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {heatMapData.map((row) => (
-                  <tr key={row.segment}>
-                    <td className="p-2 font-medium">{row.segment}</td>
-                    {Object.entries(row).slice(1).map(([day, data]: [string, any]) => (
-                      <td key={day} className="p-1">
-                        <div
-                          className={`p-2 rounded cursor-pointer transition-all hover:scale-105 ${getCellColor(data.eRPM, data.spam)}`}
-                          onClick={() => handleCellClick(row.segment, day, data)}
-                        >
-                          <div className="text-center">
-                            <div className="text-sm font-bold">R${data.eRPM}</div>
-                            <div className="text-xs opacity-90">{data.spam}%</div>
-                          </div>
-                        </div>
-                      </td>
+          <TooltipProvider>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2 font-medium">Segmento</th>
+                    {weekDays.map(day => (
+                      <th key={day} className="text-center p-2 font-medium min-w-24">{day}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {heatMapData.map((row) => (
+                    <tr key={row.segment}>
+                      <td className="p-2 font-medium">{row.segment}</td>
+                      {Object.entries(row).slice(1).map(([day, data]: [string, any]) => (
+                        <td key={day} className="p-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={`p-2 rounded cursor-pointer transition-all hover:scale-105 hover:shadow-md ${getCellColor(data.eRPM, data.spam)}`}
+                                onClick={() => handleCellClick(row.segment, day, data)}
+                              >
+                                <div className="text-center">
+                                  <div className="text-sm font-bold">R${data.eRPM}</div>
+                                  <div className="text-xs opacity-90">{(data.spam * 100).toFixed(1)}%</div>
+                                </div>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="space-y-1">
+                                <p className="font-semibold">{row.segment} - {day}</p>
+                                <div className="grid grid-cols-3 gap-3 text-xs">
+                                  <div>
+                                    <p className="text-success">eRPM: R${data.eRPM}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-destructive">Spam: {(data.spam * 100).toFixed(1)}%</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-warning">Rev: R${data.revenue}</p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Clique para detalhes</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 
@@ -135,7 +158,7 @@ export default function Reports() {
                   <div className="text-sm text-muted-foreground">eRPM</div>
                 </div>
                 <div className="text-center p-4 bg-destructive/10 rounded">
-                  <div className="text-2xl font-bold text-destructive">{selectedCell.spam}%</div>
+                  <div className="text-2xl font-bold text-destructive">{(selectedCell.spam * 100).toFixed(1)}%</div>
                   <div className="text-sm text-muted-foreground">Spam Rate</div>
                 </div>
                 <div className="text-center p-4 bg-warning/10 rounded">
@@ -181,7 +204,7 @@ export default function Reports() {
                   <TableCell className="font-medium">R$ {metrics.eRPM}</TableCell>
                   <TableCell>
                     <Badge className={metrics.spam > 0.1 ? 'warning-badge' : 'success-badge'}>
-                      {metrics.spam}%
+                      {(metrics.spam * 100).toFixed(1)}%
                     </Badge>
                   </TableCell>
                   <TableCell>{metrics.sends.toLocaleString('pt-BR')}</TableCell>
