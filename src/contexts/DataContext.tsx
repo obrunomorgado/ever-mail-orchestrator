@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
 // Enhanced Types for Best Time Optimization
@@ -307,16 +307,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [bestTimeData, setBestTimeData] = useState<BestTimeData[]>([])
   const [contentTypes] = useState<ContentType[]>(generateContentTypes())
   const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [precomputedInsights, setPrecomputedInsights] = useState<Map<string, any>>(new Map())
   const { toast } = useToast()
 
   // Initialize data
   useEffect(() => {
     const initializeData = async () => {
-      console.log('Generating 50K contacts for development...')
+      console.log('Generating 10K contacts for debug mode...')
       
       // Generate data in chunks to avoid blocking UI
-      const chunkSize = 5000
-      const totalContacts = 50000
+      const chunkSize = 2000
+      const totalContacts = 10000
       const chunks = Math.ceil(totalContacts / chunkSize)
       
       let allContacts: Contact[] = []
@@ -374,7 +375,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const globalSpamRate = Math.random() * 0.08 // 0-0.08%
 
   // Best Time Optimization functions
-  const calculateBestTime = (contactId: string): { hour: number; confidence: number; fallbackUsed: string } => {
+  const calculateBestTime = useCallback((contactId: string): { hour: number; confidence: number; fallbackUsed: string } => {
     const contactBestTime = bestTimeData.find(btd => btd.contactId === contactId)
     
     if (!contactBestTime || contactBestTime.bestHour === -1) {
@@ -403,9 +404,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       confidence: contactBestTime.confidence,
       fallbackUsed: 'none'
     }
-  }
+  }, [bestTimeData, contacts])
 
-  const getOptimalSendTime = (audienceId: string, contentType?: string): Date => {
+  const getOptimalSendTime = useCallback((audienceId: string, contentType?: string): Date => {
     const audience = audiences.find(a => a.id === audienceId)
     if (!audience) return new Date()
     
@@ -439,14 +440,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     
     return sendTime
-  }
+  }, [audiences, contentTypes, contacts, bestTimeData])
 
-  const getBestTimeInsights = (audienceId: string): { 
+  const getBestTimeInsights = useCallback((audienceId: string): { 
     optimalHour: number
     expectedLift: number
     confidence: number
     fallbackReason?: string
   } => {
+    // Check precomputed cache first
+    const cached = precomputedInsights.get(audienceId)
+    if (cached) return cached
     const audience = audiences.find(a => a.id === audienceId)
     if (!audience) return { optimalHour: 10, expectedLift: 0, confidence: 0 }
     
@@ -474,13 +478,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Expected lift based on data quality and financial industry benchmarks
     const expectedLift = Math.min(25, avgConfidence * 30 + (validBestTimes.length / audienceContacts.length) * 20)
     
-    return {
+    const result = {
       optimalHour,
       expectedLift: Math.round(expectedLift),
       confidence: avgConfidence,
       fallbackReason: fallbackCount > audienceContacts.length * 0.5 ? 'partial-data' : undefined
     }
-  }
+    
+    // Cache the result
+    setPrecomputedInsights(prev => new Map(prev.set(audienceId, result)))
+    return result
+  }, [audiences, bestTimeData, contacts, precomputedInsights])
 
   // Actions
   const createAudience = (audienceData: Omit<Audience, 'id' | 'contacts' | 'size' | 'updatedAt'>) => {

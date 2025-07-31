@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -35,8 +35,8 @@ export default function Planner() {
   const { state, toggleBestTime, setDefaultContentType } = useGlobal()
   const isMobile = useIsMobile()
 
-  // Convert audiences to segments format with scheduling state
-  const segments = audiences.map(audience => ({
+  // Convert audiences to segments format with scheduling state - memoized
+  const segments = useMemo(() => audiences.map(audience => ({
     id: audience.id,
     name: audience.name,
     size: audience.size,
@@ -44,24 +44,24 @@ export default function Planner() {
     health: audience.health,
     scheduled: scheduledSegments.some(s => s.id === audience.id),
     timeSlot: scheduledSegments.find(s => s.id === audience.id)?.timeSlot || null
-  }))
+  })), [audiences, scheduledSegments])
 
-  const overlapData = audiences.slice(0, 2).map((aud1, i) => {
+  const overlapData = useMemo(() => audiences.slice(0, 2).map((aud1, i) => {
     const aud2 = audiences[i + 1]
     return aud2 ? {
       segment1: aud1.name,
       segment2: aud2.name,
       overlap: getOverlapPercentage(aud1.id, aud2.id)
     } : null
-  }).filter(Boolean)
+  }).filter(Boolean), [audiences, getOverlapPercentage])
 
-  const totalScheduled = scheduledSegments.length
-  const totalClicks = scheduledSegments.reduce((sum, s) => {
+  const totalScheduled = useMemo(() => scheduledSegments.length, [scheduledSegments])
+  const totalClicks = useMemo(() => scheduledSegments.reduce((sum, s) => {
     const segment = segments.find(seg => seg.id === s.id)
     return segment ? sum + (segment.size * segment.eRPM / 1000 * 0.02) : sum
-  }, 0) // Estimativa 2% CTR
+  }, 0), [scheduledSegments, segments]) // Estimativa 2% CTR
 
-  const handleDrop = (result: any) => {
+  const handleDrop = useCallback((result: any) => {
     if (!result.destination) return
 
     const segmentId = result.draggableId
@@ -119,9 +119,9 @@ export default function Planner() {
       title: "Segmento agendado!",
       description: scheduleMessage,
     })
-  }
+  }, [segments, state.frequencyCapValue, state.bestTimeEnabled, selectedContentType, scheduledSegments, validateFrequencyCap, getOverlapPercentage, getOptimalSendTime, getBestTimeInsights, toast])
 
-  const handleLaunchDay = () => {
+  const handleLaunchDay = useCallback(() => {
     const scheduledCount = scheduledSegments.length
     if (scheduledCount === 0) {
       toast({
@@ -153,7 +153,7 @@ export default function Planner() {
       title: "Agendado! 🚀",
       description: `${scheduledCount} envios programados para hoje`,
     })
-  }
+  }, [scheduledSegments, audiences, scheduleCampaign, toast])
 
   const getHealthColor = (health: string) => {
     switch (health) {
@@ -238,7 +238,7 @@ export default function Planner() {
                   <Droppable droppableId="available-segments">
                     {(provided) => (
                       <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                        {segments.filter(s => !s.scheduled).map((segment, index) => (
+                        {segments.filter(s => !s.scheduled).slice(0, 20).map((segment, index) => (
                           <Draggable key={segment.id} draggableId={segment.id} index={index}>
                             {(provided) => (
                               <div
@@ -271,49 +271,49 @@ export default function Planner() {
                                       <DollarSign className="h-3 w-3" />
                                       R$ {segment.eRPM.toFixed(2)}
                                     </span>
-                                    {state.bestTimeEnabled && (() => {
-                                      const insights = getBestTimeInsights(segment.id)
-                                      return insights.expectedLift > 0 && (
-                                        <span className="flex items-center gap-1 text-success">
-                                          <TrendingUp className="h-3 w-3" />
-                                          +{insights.expectedLift}%
-                                        </span>
-                                      )
-                                    })()}
+                                     {state.bestTimeEnabled && useMemo(() => {
+                                       const insights = getBestTimeInsights(segment.id)
+                                       return insights.expectedLift > 0 && (
+                                         <span className="flex items-center gap-1 text-success">
+                                           <TrendingUp className="h-3 w-3" />
+                                           +{insights.expectedLift}%
+                                         </span>
+                                       )
+                                     }, [segment.id])}
                                   </div>
                                 </div>
                                 
-                                <div className="text-right">
-                                  {state.bestTimeEnabled ? (() => {
-                                    const optimalTime = getOptimalSendTime(segment.id, selectedContentType)
-                                    const insights = getBestTimeInsights(segment.id)
-                                    return (
-                                      <>
-                                        <div className="text-sm font-medium text-primary">
-                                          {optimalTime.toLocaleTimeString('pt-BR', { 
-                                            hour: '2-digit', 
-                                            minute: '2-digit',
-                                            hour12: false 
-                                          })}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {insights.confidence >= 0.7 ? 'High confidence' :
-                                           insights.confidence >= 0.4 ? 'Medium confidence' :
-                                           'Low confidence'}
-                                        </div>
-                                      </>
-                                    )
-                                  })() : (
-                                    <>
-                                      <div className="text-sm font-medium text-primary">
-                                        09:30
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        Default
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
+                                 <div className="text-right">
+                                   {state.bestTimeEnabled ? useMemo(() => {
+                                     const optimalTime = getOptimalSendTime(segment.id, selectedContentType)
+                                     const insights = getBestTimeInsights(segment.id)
+                                     return (
+                                       <>
+                                         <div className="text-sm font-medium text-primary">
+                                           {optimalTime.toLocaleTimeString('pt-BR', { 
+                                             hour: '2-digit', 
+                                             minute: '2-digit',
+                                             hour12: false 
+                                           })}
+                                         </div>
+                                         <div className="text-xs text-muted-foreground">
+                                           {insights.confidence >= 0.7 ? 'High confidence' :
+                                            insights.confidence >= 0.4 ? 'Medium confidence' :
+                                            'Low confidence'}
+                                         </div>
+                                       </>
+                                     )
+                                   }, [segment.id, selectedContentType]) : (
+                                     <>
+                                       <div className="text-sm font-medium text-primary">
+                                         09:30
+                                       </div>
+                                       <div className="text-xs text-muted-foreground">
+                                         Default
+                                       </div>
+                                     </>
+                                   )}
+                                 </div>
                               </div>
                             )}
                           </Draggable>

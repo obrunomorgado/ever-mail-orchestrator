@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Clock, TrendingUp, Users, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,11 +9,18 @@ interface BestTimeWidgetProps {
   className?: string;
 }
 
-export function BestTimeWidget({ audienceId, className }: BestTimeWidgetProps) {
+const BestTimeWidget = React.memo(({ audienceId, className }: BestTimeWidgetProps) => {
   const { getBestTimeInsights, audiences } = useData();
   
-  const audience = audiences.find(a => a.id === audienceId);
-  const insights = getBestTimeInsights(audienceId);
+  const audience = useMemo(() => 
+    audiences.find(a => a.id === audienceId), 
+    [audiences, audienceId]
+  );
+  
+  const insights = useMemo(() => 
+    getBestTimeInsights(audienceId), 
+    [getBestTimeInsights, audienceId]
+  );
   
   if (!audience) return null;
 
@@ -97,4 +104,8 @@ export function BestTimeWidget({ audienceId, className }: BestTimeWidgetProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+BestTimeWidget.displayName = 'BestTimeWidget';
+
+export { BestTimeWidget };
