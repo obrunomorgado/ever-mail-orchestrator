@@ -59,6 +59,10 @@ const reportItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+const docsItems = [
+  { title: "Módulo de Segmentos", url: "/docs/segmentos", icon: FileText },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar()
   const location = useLocation()
@@ -145,6 +149,24 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {reportItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Documentação</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {docsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>

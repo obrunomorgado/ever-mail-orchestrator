@@ -29,6 +29,7 @@ import Guardrails from "./pages/Guardrails";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import SegmentModuleDocs from "./pages/SegmentModuleDocs";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
                   <Route path="/guardrails" element={<Guardrails />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/docs/segmentos" element={<SegmentModuleDocs />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </main>
