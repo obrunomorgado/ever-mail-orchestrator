@@ -12,6 +12,12 @@ import { DataProvider } from "@/contexts/DataContext";
 import { AppHeader } from "@/components/AppHeader";
 import Dashboard from "./pages/Dashboard";
 import Planner from "./pages/Planner";
+import { PlannerPage } from "./pages/PlannerPage";
+import { AudiencePanel } from "./pages/AudiencePanel";
+import { HeatMapPanel } from "./pages/HeatMapPanel";
+import { WarmupWizard } from "./pages/WarmupWizard";
+import { AutomationCanvas } from "./pages/AutomationCanvas";
+import { ListCleaningPage } from "./pages/ListCleaningPage";
 import Audiences from "./pages/Audiences";
 import Automations from "./pages/Automations";
 import AutomationsFlow from "./pages/AutomationsFlow";
@@ -38,18 +44,24 @@ const App = () => (
               <div className="flex-1 flex flex-col">
                 <AppHeader />
                 <main className="flex-1 p-6">
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/planner" element={<Planner />} />
-                    <Route path="/audiences" element={<Audiences />} />
-                    <Route path="/automations" element={<Automations />} />
-                    <Route path="/automations-flow" element={<AutomationsFlow />} />
-                    <Route path="/warm-up" element={<WarmUp />} />
-                    <Route path="/guardrails" element={<Guardrails />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/planner" element={<Planner />} />
+                  <Route path="/planner-new" element={<PlannerPage />} />
+                  <Route path="/audiencias/:tipo" element={<AudiencePanel />} />
+                  <Route path="/heatmap" element={<HeatMapPanel />} />
+                  <Route path="/warmup" element={<WarmupWizard />} />
+                  <Route path="/automation" element={<AutomationCanvas />} />
+                  <Route path="/cleaning" element={<ListCleaningPage />} />
+                  <Route path="/audiences" element={<Audiences />} />
+                  <Route path="/automations" element={<Automations />} />
+                  <Route path="/automations-flow" element={<AutomationsFlow />} />
+                  <Route path="/warm-up" element={<WarmUp />} />
+                  <Route path="/guardrails" element={<Guardrails />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
                 </main>
               </div>
             </div>
