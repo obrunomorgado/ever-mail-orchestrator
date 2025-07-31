@@ -40,12 +40,10 @@ const audienceItems = [
   { title: "Segmentos", url: "/audiencias/segmentos", icon: Users },
   { title: "Tags", url: "/audiencias/tags", icon: Tag },
   { title: "Listas", url: "/audiencias/listas", icon: List },
-  { title: "Audiences", url: "/audiences", icon: Users },
 ];
 
 const toolsItems = [
   { title: "Planner", url: "/planner-new", icon: Calendar },
-  { title: "Heat-Map", url: "/heatmap", icon: TrendingUp },
   { title: "Warm-up", url: "/warmup", icon: Thermometer },
   { title: "Automação", url: "/automation", icon: GitBranch },
   { title: "Limpeza", url: "/cleaning", icon: Trash2 },
@@ -57,7 +55,7 @@ const toolsItems = [
 
 const reportItems = [
   { title: "Guardrails", url: "/guardrails", icon: Shield },
-  { title: "Reports", url: "/reports", icon: Activity },
+  { title: "Heat Map", url: "/reports", icon: Activity },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
