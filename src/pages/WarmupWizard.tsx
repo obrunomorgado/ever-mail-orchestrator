@@ -126,29 +126,71 @@ export function WarmupWizard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {warmupSchedule.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium">{item.day}</span>
-                      </div>
-                      <div>
-                        <div className="font-medium">Dia {item.day}</div>
-                        <div className="text-sm text-muted-foreground">{item.notes}</div>
-                      </div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <div className="font-medium">{item.volume.toLocaleString()} emails</div>
-                      <div className="flex items-center gap-2">
-                        <Progress value={item.reputation * 100} className="w-16 h-2" />
-                        <span className="text-xs text-muted-foreground">
-                          {(item.reputation * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Semana</th>
+                      <th className="text-left p-2">Dias</th>
+                      <th className="text-left p-2">Volume/Dia</th>
+                      <th className="text-left p-2">Meta OR</th>
+                      <th className="text-left p-2">Meta CTR</th>
+                      <th className="text-left p-2">Reputação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="p-2 font-medium">1</td>
+                      <td className="p-2">1-7</td>
+                      <td className="p-2">50-200</td>
+                      <td className="p-2">≥25%</td>
+                      <td className="p-2">≥2%</td>
+                      <td className="p-2">
+                        <Progress value={20} className="w-16 h-2" />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2 font-medium">2</td>
+                      <td className="p-2">8-14</td>
+                      <td className="p-2">500-1.000</td>
+                      <td className="p-2">≥30%</td>
+                      <td className="p-2">≥3%</td>
+                      <td className="p-2">
+                        <Progress value={40} className="w-16 h-2" />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2 font-medium">3</td>
+                      <td className="p-2">15-21</td>
+                      <td className="p-2">2.000-3.500</td>
+                      <td className="p-2">≥35%</td>
+                      <td className="p-2">≥4%</td>
+                      <td className="p-2">
+                        <Progress value={60} className="w-16 h-2" />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 font-medium">4</td>
+                      <td className="p-2">22-30</td>
+                      <td className="p-2">5.000+</td>
+                      <td className="p-2">≥40%</td>
+                      <td className="p-2">≥5%</td>
+                      <td className="p-2">
+                        <Progress value={85} className="w-16 h-2" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Observações Importantes:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Monitore bounce rate (&lt;3%) e complaint rate (&lt;0.1%)</li>
+                  <li>• Pause se métricas estiverem abaixo das metas</li>
+                  <li>• Aumente gradualmente conforme reputação melhora</li>
+                  <li>• Use listas limpas e segmentadas</li>
+                </ul>
               </div>
             </CardContent>
           </Card>

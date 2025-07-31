@@ -35,7 +35,7 @@ export function AudiencePanel() {
 
   const formatMetric = (item: any) => {
     if (tipo === "segmentos") {
-      return `${item.size.toLocaleString()} contatos • CTR ${(item.ctr * 100).toFixed(1)}% • eRPM R$${item.erpm.toFixed(2)}`;
+      return `${item.size.toLocaleString()} contatos • CTR ${(item.ctr * 100).toFixed(1)}%`;
     }
     if (tipo === "tags") {
       return `${item.applied.toLocaleString()} aplicações`;
@@ -58,6 +58,14 @@ export function AudiencePanel() {
         <CardDescription className="text-sm">
           {formatMetric(item)}
         </CardDescription>
+        {tipo === "segmentos" && item.erpm && (
+          <Badge 
+            variant={item.erpm > 0.18 ? "default" : item.erpm > 0.1 ? "secondary" : "destructive"}
+            className="mt-2 w-fit"
+          >
+            eRPM R${item.erpm.toFixed(2)}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex justify-between items-center">

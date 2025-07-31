@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { segments } from "@/mocks/demoData";
+import { OverlapModal } from "@/components/OverlapModal";
 import { Calendar, TrendingUp, Users } from "lucide-react";
 
 interface SegmentData {
@@ -41,6 +42,7 @@ export function PlannerPage() {
     '09:00': [],
     '12:00': []
   });
+  const [overlapData, setOverlapData] = useState<{segmentAId: string, segmentBId: string} | null>(null);
 
   const calculateTotalRevenue = useCallback(() => {
     const total = Object.values(plannedSegments)
@@ -50,12 +52,20 @@ export function PlannerPage() {
   }, [plannedSegments]);
 
   const onDragEnd = (result: DropResult) => {
-    const { source, destination } = result;
+    const { source, destination, combine } = result;
     
-    if (!destination) return;
+    if (!destination && !combine) return;
+
+    // Handle overlap detection
+    if (combine) {
+      const sourceSegment = result.draggableId;
+      const targetSegment = combine.draggableId;
+      setOverlapData({ segmentAId: sourceSegment, segmentBId: targetSegment });
+      return;
+    }
     
     const sourceId = source.droppableId;
-    const destId = destination.droppableId;
+    const destId = destination!.droppableId;
     
     if (sourceId === 'available' && timeSlots.includes(destId)) {
       // Moving from available to time slot
@@ -232,6 +242,16 @@ export function PlannerPage() {
           ))}
         </div>
       </DragDropContext>
+
+      {/* Overlap Modal */}
+      {overlapData && (
+        <OverlapModal
+          open={!!overlapData}
+          onOpenChange={() => setOverlapData(null)}
+          segmentAId={overlapData.segmentAId}
+          segmentBId={overlapData.segmentBId}
+        />
+      )}
 
       {/* Summary Card */}
       <Card>
