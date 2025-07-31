@@ -311,19 +311,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize data
   useEffect(() => {
-    const initializeData = () => {
-      console.log('Generating 500K contacts with Best Time data...')
-      const generatedContacts = generateContacts(500000)
-      const generatedAudiences = generateAudiences(generatedContacts)
-      const generatedBestTimeData = generateBestTimeData(generatedContacts)
+    const initializeData = async () => {
+      console.log('Generating 50K contacts for development...')
       
-      setContacts(generatedContacts)
+      // Generate data in chunks to avoid blocking UI
+      const chunkSize = 5000
+      const totalContacts = 50000
+      const chunks = Math.ceil(totalContacts / chunkSize)
+      
+      let allContacts: Contact[] = []
+      
+      for (let i = 0; i < chunks; i++) {
+        const chunkContacts = generateContacts(chunkSize)
+        allContacts = [...allContacts, ...chunkContacts]
+        
+        // Yield control back to browser between chunks
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        // Update progress
+        console.log(`Generated ${allContacts.length}/${totalContacts} contacts...`)
+      }
+      
+      const generatedAudiences = generateAudiences(allContacts)
+      const generatedBestTimeData = generateBestTimeData(allContacts)
+      
+      setContacts(allContacts)
       setAudiences(generatedAudiences)
       setBestTimeData(generatedBestTimeData)
       setLastUpdate(new Date())
       setLoading(false)
       
-      console.log(`Generated ${generatedContacts.length} contacts and ${generatedAudiences.length} audiences with Best Time optimization`)
+      console.log(`Generated ${allContacts.length} contacts and ${generatedAudiences.length} audiences with Best Time optimization`)
     }
 
     // Simulate loading time
