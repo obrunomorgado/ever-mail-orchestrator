@@ -8,7 +8,12 @@ import {
   Shield,
   Activity,
   Settings,
-  Mail
+  Mail,
+  Tag,
+  List,
+  Thermometer,
+  Trash2,
+  GitBranch
 } from "lucide-react"
 
 import {
@@ -26,15 +31,31 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
+];
+
+const audienceItems = [
+  { title: "Segmentos", url: "/audiencias/segmentos", icon: Users },
+  { title: "Tags", url: "/audiencias/tags", icon: Tag },
+  { title: "Listas", url: "/audiencias/listas", icon: List },
+];
+
+const toolsItems = [
   { title: "Planner", url: "/planner", icon: Calendar },
+  { title: "Heat-Map", url: "/heatmap", icon: TrendingUp },
+  { title: "Warm-up", url: "/warmup", icon: Thermometer },
+  { title: "Automação", url: "/automation", icon: GitBranch },
+  { title: "Limpeza", url: "/cleaning", icon: Trash2 },
+];
+
+const reportItems = [
   { title: "Audiences", url: "/audiences", icon: Users },
   { title: "Automations", url: "/automations", icon: Workflow },
   { title: "Flow Builder", url: "/automations-flow", icon: Workflow },
   { title: "Warm-up Wizard", url: "/warm-up", icon: TrendingUp },
-  { title: "Deliverability Guardrails", url: "/guardrails", icon: Shield },
+  { title: "Guardrails", url: "/guardrails", icon: Shield },
   { title: "Reports", url: "/reports", icon: Activity },
   { title: "Settings", url: "/settings", icon: Settings },
-]
+];
 
 export function AppSidebar() {
   const { state } = useSidebar()
@@ -66,13 +87,65 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Audiências</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {audienceItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {toolsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {reportItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-4 w-4" />
                       {state !== "collapsed" && <span>{item.title}</span>}
                     </NavLink>
