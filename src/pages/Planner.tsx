@@ -3,14 +3,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
-import { Clock, Users, DollarSign, AlertTriangle, CheckCircle, Calendar } from "lucide-react"
+import { Clock, Users, DollarSign, AlertTriangle, CheckCircle, Calendar, Zap, Settings, TrendingUp } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useData } from "@/contexts/DataContext"
 import { useGlobal } from "@/contexts/GlobalContext"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { FrequencyCapWidget } from "@/components/FrequencyCapWidget"
+import { BestTimeWidget } from "@/components/BestTimeWidget"
 
 const timeSlots = ['06h', '09h', '12h', '15h', '18h', '21h']
 
@@ -18,9 +21,18 @@ export default function Planner() {
   const [metaDiaria, setMetaDiaria] = useState([3000000])
   const [showOverlapModal, setShowOverlapModal] = useState(false)
   const [scheduledSegments, setScheduledSegments] = useState<any[]>([])
+  const [selectedContentType, setSelectedContentType] = useState('newsletter')
   const { toast } = useToast()
-  const { audiences, validateFrequencyCap, getOverlapPercentage, scheduleCampaign } = useData()
-  const { state } = useGlobal()
+  const { 
+    audiences, 
+    validateFrequencyCap, 
+    getOverlapPercentage, 
+    scheduleCampaign,
+    getOptimalSendTime,
+    getBestTimeInsights,
+    contentTypes
+  } = useData()
+  const { state, toggleBestTime, setDefaultContentType } = useGlobal()
   const isMobile = useIsMobile()
 
   // Convert audiences to segments format with scheduling state
@@ -91,9 +103,21 @@ export default function Planner() {
       return [...prev, newSegment]
     })
 
+    // Get optimal send time if Best Time is enabled
+    let scheduleMessage = `${segment.name} agendado para ${timeSlot}`
+    
+    if (state.bestTimeEnabled) {
+      const optimalTime = getOptimalSendTime(segmentId, selectedContentType)
+      const insights = getBestTimeInsights(segmentId)
+      
+      if (insights.expectedLift > 0) {
+        scheduleMessage += ` (Optimized: +${insights.expectedLift}% expected lift)`
+      }
+    }
+
     toast({
       title: "Segmento agendado!",
-      description: `${segment.name} agendado para ${timeSlot}`,
+      description: scheduleMessage,
     })
   }
 
@@ -163,167 +187,285 @@ export default function Planner() {
         </Button>
       </div>
 
-      {/* Frequency Cap Widget */}
-      <FrequencyCapWidget />
-
-      {/* Stats Bar */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Envios:</span>
-                <Badge variant="outline">{totalScheduled}/20</Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Cliques previstos:</span>
-                <Badge className="bg-success/10 text-success">{Math.round(totalClicks).toLocaleString('pt-BR')}</Badge>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">Meta diária:</span>
-              <div className="w-48">
-                <Slider
-                  value={metaDiaria}
-                  onValueChange={setMetaDiaria}
-                  max={5000000}
-                  min={1000000}
-                  step={100000}
-                  className="w-full"
-                />
-              </div>
-              <Badge variant="outline">{metaDiaria[0].toLocaleString('pt-BR')}</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Drag and Drop Grid */}
-      <DragDropContext onDragEnd={handleDrop}>
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
-          {/* Available Segments */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="lg:w-2/3">
           <Card>
             <CardHeader>
-              <CardTitle>Segmentos Disponíveis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Droppable droppableId="available-segments">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                    {segments.filter(s => !s.scheduled).map((segment, index) => (
-                      <Draggable key={segment.id} draggableId={segment.id} index={index}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className="segment-card"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-semibold text-foreground">{segment.name}</h4>
-                                <div className="flex items-center gap-4 mt-1">
-                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <Users className="h-3 w-3" />
-                                    {segment.size.toLocaleString('pt-BR')}
-                                  </div>
-                                  <div className="flex items-center gap-1 text-sm text-success">
-                                    <DollarSign className="h-3 w-3" />
-                                    R$ {segment.eRPM.toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge className={`${getHealthColor(segment.health) === 'success' ? 'success-badge' : 
-                                  getHealthColor(segment.health) === 'warning' ? 'warning-badge' : 'info-badge'}`}>
-                                  {getHealthIcon(segment.health)}
-                                  {segment.health}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Daily Campaign Planner
+                {state.bestTimeEnabled && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Best Time Active
+                  </Badge>
                 )}
-              </Droppable>
-            </CardContent>
-          </Card>
-
-          {/* Time Slots Grid */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Grade de Horários</CardTitle>
-              <Dialog open={showOverlapModal} onOpenChange={setShowOverlapModal}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Overlap Checker
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Matriz de Overlap</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    {overlapData.map((overlap, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{overlap.segment1} × {overlap.segment2}</p>
-                        </div>
-                        <Badge className={overlap.overlap > 30 ? 'warning-badge' : 'success-badge'}>
-                          {overlap.overlap}%
-                        </Badge>
-                      </div>
-                    ))}
-                    <Button className="w-full" onClick={() => setShowOverlapModal(false)}>
-                      Resolve Overlaps
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                {timeSlots.map((slot) => (
-                  <Droppable key={slot} droppableId={slot}>
-                    {(provided, snapshot) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className={`min-h-24 p-3 border-2 border-dashed rounded-lg transition-colors ${
-                          snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-border'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">{slot}</span>
-                        </div>
-                        {scheduledSegments
-                          .filter(s => s.timeSlot === slot)
-                          .map((scheduled) => {
-                            const segment = segments.find(s => s.id === scheduled.id)
-                            return segment ? (
-                              <div key={scheduled.id} className="bg-primary/10 border border-primary/20 rounded p-2 text-xs">
-                                <div className="font-medium">{segment.name}</div>
-                                <div className="text-muted-foreground">
-                                  {segment.size.toLocaleString('pt-BR')} contatos
+            <CardContent className="space-y-6">
+              {/* Stats Bar */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Envios:</span>
+                    <Badge variant="outline">{totalScheduled}/20</Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Cliques previstos:</span>
+                    <Badge className="bg-success/10 text-success">{Math.round(totalClicks).toLocaleString('pt-BR')}</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium">Meta diária:</span>
+                  <div className="w-48">
+                    <Slider
+                      value={metaDiaria}
+                      onValueChange={setMetaDiaria}
+                      max={5000000}
+                      min={1000000}
+                      step={100000}
+                      className="w-full"
+                    />
+                  </div>
+                  <Badge variant="outline">{metaDiaria[0].toLocaleString('pt-BR')}</Badge>
+                </div>
+              </div>
+
+              {/* Available Segments with Best Time Preview */}
+              <div>
+                <h3 className="font-semibold mb-4">Segmentos Disponíveis</h3>
+                <DragDropContext onDragEnd={handleDrop}>
+                  <Droppable droppableId="available-segments">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
+                        {segments.filter(s => !s.scheduled).map((segment, index) => (
+                          <Draggable key={segment.id} draggableId={segment.id} index={index}>
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="flex items-center gap-3 p-3 bg-background border rounded-lg hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm">{segment.name}</span>
+                                    <Badge variant={getHealthColor(segment.health) === 'success' ? 'default' : 
+                                      getHealthColor(segment.health) === 'warning' ? 'secondary' : 'outline'} className="text-xs">
+                                      {getHealthIcon(segment.health)}
+                                      {segment.health}
+                                    </Badge>
+                                    {state.bestTimeEnabled && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        <Zap className="h-3 w-3 mr-1" />
+                                        AI
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3" />
+                                      {segment.size.toLocaleString('pt-BR')}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <DollarSign className="h-3 w-3" />
+                                      R$ {segment.eRPM.toFixed(2)}
+                                    </span>
+                                    {state.bestTimeEnabled && (() => {
+                                      const insights = getBestTimeInsights(segment.id)
+                                      return insights.expectedLift > 0 && (
+                                        <span className="flex items-center gap-1 text-success">
+                                          <TrendingUp className="h-3 w-3" />
+                                          +{insights.expectedLift}%
+                                        </span>
+                                      )
+                                    })()}
+                                  </div>
+                                </div>
+                                
+                                <div className="text-right">
+                                  {state.bestTimeEnabled ? (() => {
+                                    const optimalTime = getOptimalSendTime(segment.id, selectedContentType)
+                                    const insights = getBestTimeInsights(segment.id)
+                                    return (
+                                      <>
+                                        <div className="text-sm font-medium text-primary">
+                                          {optimalTime.toLocaleTimeString('pt-BR', { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit',
+                                            hour12: false 
+                                          })}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {insights.confidence >= 0.7 ? 'High confidence' :
+                                           insights.confidence >= 0.4 ? 'Medium confidence' :
+                                           'Low confidence'}
+                                        </div>
+                                      </>
+                                    )
+                                  })() : (
+                                    <>
+                                      <div className="text-sm font-medium text-primary">
+                                        09:30
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Default
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
-                            ) : null
-                          })}
+                            )}
+                          </Draggable>
+                        ))}
                         {provided.placeholder}
                       </div>
                     )}
                   </Droppable>
-                ))}
+                </DragDropContext>
+              </div>
+
+              {/* Time Slots Grid */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Grade de Horários</h3>
+                  <Dialog open={showOverlapModal} onOpenChange={setShowOverlapModal}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Overlap Checker
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Matriz de Overlap</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {overlapData.map((overlap, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <p className="font-medium">{overlap.segment1} × {overlap.segment2}</p>
+                            </div>
+                            <Badge className={overlap.overlap > 30 ? 'warning-badge' : 'success-badge'}>
+                              {overlap.overlap}%
+                            </Badge>
+                          </div>
+                        ))}
+                        <Button className="w-full" onClick={() => setShowOverlapModal(false)}>
+                          Resolve Overlaps
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
+                <DragDropContext onDragEnd={handleDrop}>
+                  <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {timeSlots.map((slot) => (
+                      <Droppable key={slot} droppableId={slot}>
+                        {(provided, snapshot) => (
+                          <div
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            className={`min-h-24 p-3 border-2 border-dashed rounded-lg transition-colors ${
+                              snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-border'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium text-sm">{slot}</span>
+                            </div>
+                            {scheduledSegments
+                              .filter(s => s.timeSlot === slot)
+                              .map((scheduled) => {
+                                const segment = segments.find(s => s.id === scheduled.id)
+                                return segment ? (
+                                  <div key={scheduled.id} className="bg-primary/10 border border-primary/20 rounded p-2 text-xs">
+                                    <div className="font-medium">{segment.name}</div>
+                                    <div className="text-muted-foreground">
+                                      {segment.size.toLocaleString('pt-BR')} contatos
+                                    </div>
+                                  </div>
+                                ) : null
+                              })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    ))}
+                  </div>
+                </DragDropContext>
               </div>
             </CardContent>
           </Card>
         </div>
-      </DragDropContext>
+
+        <div className="lg:w-1/3 space-y-4">
+          {/* Best Time Configuration */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Settings className="h-4 w-4" />
+                Send-Time Optimization
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Enable Best Time</label>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically optimize send times for each audience
+                  </p>
+                </div>
+                <Switch
+                  checked={state.bestTimeEnabled}
+                  onCheckedChange={toggleBestTime}
+                />
+              </div>
+              
+              {state.bestTimeEnabled && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Content Type</label>
+                  <Select value={selectedContentType} onValueChange={setSelectedContentType}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contentTypes.map(type => (
+                        <SelectItem key={type.id} value={type.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{type.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {type.urgencyLevel}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Influences timing strategy and urgency handling
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <FrequencyCapWidget />
+          
+          {/* Best Time Insights for selected segments */}
+          {state.bestTimeEnabled && scheduledSegments.length > 0 && (
+            <div className="space-y-4">
+              {scheduledSegments.slice(0, 2).map(segmentId => (
+                <BestTimeWidget 
+                  key={segmentId} 
+                  audienceId={segmentId}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

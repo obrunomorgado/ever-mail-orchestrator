@@ -13,6 +13,8 @@ interface GlobalState {
   currentIndex: number
   frequencyCapValue: number
   autoSaveEnabled: boolean
+  bestTimeEnabled: boolean
+  defaultContentType: string
 }
 
 interface GlobalContextType {
@@ -24,6 +26,8 @@ interface GlobalContextType {
   canRedo: boolean
   setFrequencyCap: (value: number) => void
   toggleAutoSave: () => void
+  toggleBestTime: () => void
+  setDefaultContentType: (contentType: string) => void
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined)
@@ -33,6 +37,8 @@ const initialState: GlobalState = {
   currentIndex: -1,
   frequencyCapValue: 5,
   autoSaveEnabled: true,
+  bestTimeEnabled: true,
+  defaultContentType: 'newsletter',
 }
 
 function globalReducer(state: GlobalState, action: Action): GlobalState {
@@ -73,6 +79,18 @@ function globalReducer(state: GlobalState, action: Action): GlobalState {
       return {
         ...state,
         autoSaveEnabled: !state.autoSaveEnabled,
+      }
+    
+    case 'TOGGLE_BEST_TIME':
+      return {
+        ...state,
+        bestTimeEnabled: !state.bestTimeEnabled,
+      }
+    
+    case 'SET_DEFAULT_CONTENT_TYPE':
+      return {
+        ...state,
+        defaultContentType: action.payload.contentType,
       }
     
     default:
@@ -143,6 +161,24 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+  const toggleBestTime = () => {
+    dispatch({ type: 'TOGGLE_BEST_TIME', payload: null, timestamp: Date.now(), description: 'Best Time toggled' })
+    addAction({
+      type: state.bestTimeEnabled ? 'DISABLE_BEST_TIME' : 'ENABLE_BEST_TIME',
+      payload: {},
+      description: `${state.bestTimeEnabled ? 'Disabled' : 'Enabled'} Send-Time Optimization`
+    })
+  }
+
+  const setDefaultContentType = (contentType: string) => {
+    dispatch({ type: 'SET_DEFAULT_CONTENT_TYPE', payload: { contentType }, timestamp: Date.now(), description: `Content type changed to ${contentType}` })
+    addAction({
+      type: 'SET_CONTENT_TYPE',
+      payload: { contentType },
+      description: `Changed default content type to ${contentType}`
+    })
+  }
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -181,6 +217,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     canRedo: state.currentIndex < state.history.length - 1,
     setFrequencyCap,
     toggleAutoSave,
+    toggleBestTime,
+    setDefaultContentType,
   }
 
   return (

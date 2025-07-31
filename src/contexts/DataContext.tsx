@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
-// Types
+// Enhanced Types for Best Time Optimization
 interface Contact {
   id: string
   email: string
@@ -14,6 +14,10 @@ interface Contact {
   avgERP: number
   isActive: boolean
   audienceId?: string
+  // New fields for Best Time
+  openTimestamps: number[] // Unix timestamps of email opens
+  clickTimestamps: number[] // Unix timestamps of email clicks
+  timezoneOffset: number // Minutes from UTC (-720 to +840)
 }
 
 interface Audience {
@@ -41,11 +45,30 @@ interface Campaign {
   spamRate: number
 }
 
+interface BestTimeData {
+  contactId: string
+  hourlyHistogram: number[] // 24 hours (0-23)
+  weeklyHistogram: number[] // 168 bins (24*7)
+  bestHour: number // 0-23
+  confidence: number // 0-1 based on event count
+  lastUpdated: Date
+}
+
+interface ContentType {
+  id: string
+  name: string
+  category: 'newsletter' | 'alert' | 'promo' | 'analysis' | 'breaking'
+  marketHoursOptimal: boolean
+  urgencyLevel: 'low' | 'medium' | 'high' | 'urgent'
+}
+
 interface DataContextType {
   // Data
   contacts: Contact[]
   audiences: Audience[]
   campaigns: Campaign[]
+  bestTimeData: BestTimeData[]
+  contentTypes: ContentType[]
   
   // Global metrics
   totalContacts: number
@@ -59,6 +82,16 @@ interface DataContextType {
   scheduleCampaign: (campaign: Omit<Campaign, 'id' | 'status'>) => void
   pauseCampaign: (id: string) => void
   
+  // Best Time functions
+  calculateBestTime: (contactId: string) => { hour: number; confidence: number; fallbackUsed: string }
+  getOptimalSendTime: (audienceId: string, contentType?: string) => Date
+  getBestTimeInsights: (audienceId: string) => { 
+    optimalHour: number
+    expectedLift: number
+    confidence: number
+    fallbackReason?: string
+  }
+  
   // Real-time validation
   validateFrequencyCap: (audienceId: string, timeSlot: string) => boolean
   getOverlapPercentage: (audience1Id: string, audience2Id: string) => number
@@ -68,7 +101,7 @@ interface DataContextType {
   lastUpdate: Date
 }
 
-// Generate 3M realistic contacts
+// Generate 3M realistic contacts with Best Time data
 const generateContacts = (count: number): Contact[] => {
   const contacts: Contact[] = []
   const domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'empresa.com']
@@ -81,6 +114,33 @@ const generateContacts = (count: number): Contact[] => {
     const lastOpen = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000)
     const lastPurchase = new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000)
     
+    // Generate realistic email interaction timestamps
+    const openTimestamps: number[] = []
+    const clickTimestamps: number[] = []
+    const eventCount = Math.floor(Math.random() * 20) // 0-19 historical events
+    
+    for (let e = 0; e < eventCount; e++) {
+      const eventDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000)
+      
+      // Financial publishers: higher activity 9-17h weekdays
+      const isWeekday = eventDate.getDay() >= 1 && eventDate.getDay() <= 5
+      const marketHours = isWeekday && Math.random() > 0.3
+      
+      if (marketHours) {
+        eventDate.setHours(9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60))
+      } else {
+        eventDate.setHours(Math.floor(Math.random() * 24), Math.floor(Math.random() * 60))
+      }
+      
+      openTimestamps.push(eventDate.getTime())
+      
+      // 15% chance of click after open
+      if (Math.random() < 0.15) {
+        const clickDate = new Date(eventDate.getTime() + Math.random() * 3600000) // Within 1 hour
+        clickTimestamps.push(clickDate.getTime())
+      }
+    }
+
     contacts.push({
       id: `contact_${i}`,
       email: `user${i}@${domains[Math.floor(Math.random() * domains.length)]}`,
@@ -94,7 +154,10 @@ const generateContacts = (count: number): Contact[] => {
       lastPurchase,
       avgERP: purchaseAmount > 500 ? Math.random() * 300 + 100 : Math.random() * 150 + 50,
       isActive: Math.random() > 0.2,
-      audienceId: undefined
+      audienceId: undefined,
+      openTimestamps,
+      clickTimestamps,
+      timezoneOffset: Math.floor(Math.random() * 25) * 60 - 720, // -12 to +12 hours
     })
   }
   
@@ -162,6 +225,78 @@ const generateAudiences = (contacts: Contact[]): Audience[] => {
   })
 }
 
+const generateBestTimeData = (contacts: Contact[]): BestTimeData[] => {
+  return contacts.map(contact => {
+    const hourlyHistogram = new Array(24).fill(0)
+    const weeklyHistogram = new Array(168).fill(0)
+    
+    // Populate histograms from contact's interaction history
+    contact.openTimestamps.forEach(timestamp => {
+      const date = new Date(timestamp)
+      const hour = date.getHours()
+      const dayOfWeek = date.getDay()
+      const weeklyBin = dayOfWeek * 24 + hour
+      
+      hourlyHistogram[hour]++
+      weeklyHistogram[weeklyBin]++
+    })
+    
+    // Find best hour (most opens)
+    const bestHour = hourlyHistogram.indexOf(Math.max(...hourlyHistogram))
+    const totalEvents = contact.openTimestamps.length
+    const confidence = Math.min(totalEvents / 10, 1) // 0-1 based on event count
+    
+    return {
+      contactId: contact.id,
+      hourlyHistogram,
+      weeklyHistogram,
+      bestHour: totalEvents >= 3 ? bestHour : -1, // -1 means insufficient data
+      confidence,
+      lastUpdated: new Date(),
+    }
+  })
+}
+
+const generateContentTypes = (): ContentType[] => {
+  return [
+    {
+      id: 'newsletter',
+      name: 'Daily Newsletter',
+      category: 'newsletter',
+      marketHoursOptimal: true,
+      urgencyLevel: 'low',
+    },
+    {
+      id: 'market-alert',
+      name: 'Market Alert',
+      category: 'alert',
+      marketHoursOptimal: true,
+      urgencyLevel: 'high',
+    },
+    {
+      id: 'breaking-news',
+      name: 'Breaking News',
+      category: 'breaking',
+      marketHoursOptimal: false,
+      urgencyLevel: 'urgent',
+    },
+    {
+      id: 'weekly-analysis',
+      name: 'Weekly Analysis',
+      category: 'analysis',
+      marketHoursOptimal: true,
+      urgencyLevel: 'medium',
+    },
+    {
+      id: 'promo-offer',
+      name: 'Promotional Offer',
+      category: 'promo',
+      marketHoursOptimal: false,
+      urgencyLevel: 'medium',
+    },
+  ]
+}
+
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
@@ -169,22 +304,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [audiences, setAudiences] = useState<Audience[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [bestTimeData, setBestTimeData] = useState<BestTimeData[]>([])
+  const [contentTypes] = useState<ContentType[]>(generateContentTypes())
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const { toast } = useToast()
 
   // Initialize data
   useEffect(() => {
     const initializeData = () => {
-      console.log('Generating 3M contacts...')
+      console.log('Generating 3M contacts with Best Time data...')
       const generatedContacts = generateContacts(3000000)
       const generatedAudiences = generateAudiences(generatedContacts)
+      const generatedBestTimeData = generateBestTimeData(generatedContacts)
       
       setContacts(generatedContacts)
       setAudiences(generatedAudiences)
+      setBestTimeData(generatedBestTimeData)
       setLastUpdate(new Date())
       setLoading(false)
       
-      console.log(`Generated ${generatedContacts.length} contacts and ${generatedAudiences.length} audiences`)
+      console.log(`Generated ${generatedContacts.length} contacts and ${generatedAudiences.length} audiences with Best Time optimization`)
     }
 
     // Simulate loading time
@@ -215,6 +354,115 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const dailyRevenue = audiences.reduce((sum, a) => sum + (a.size * a.eRPM / 1000), 0)
   const avgERP = audiences.reduce((sum, a) => sum + a.eRPM, 0) / audiences.length || 0
   const globalSpamRate = Math.random() * 0.08 // 0-0.08%
+
+  // Best Time Optimization functions
+  const calculateBestTime = (contactId: string): { hour: number; confidence: number; fallbackUsed: string } => {
+    const contactBestTime = bestTimeData.find(btd => btd.contactId === contactId)
+    
+    if (!contactBestTime || contactBestTime.bestHour === -1) {
+      // Fallback to audience average
+      const contact = contacts.find(c => c.id === contactId)
+      if (contact) {
+        const audienceContacts = contacts.filter(c => c.tags.some(tag => contact.tags.includes(tag)))
+        const audienceBestTimes = audienceContacts
+          .map(c => bestTimeData.find(btd => btd.contactId === c.id))
+          .filter(btd => btd && btd.bestHour !== -1)
+        
+        if (audienceBestTimes.length > 0) {
+          const avgHour = Math.round(
+            audienceBestTimes.reduce((sum, btd) => sum + btd!.bestHour, 0) / audienceBestTimes.length
+          )
+          return { hour: avgHour, confidence: 0.6, fallbackUsed: 'audience' }
+        }
+      }
+      
+      // Global fallback for financial content: 10 AM (market hours)
+      return { hour: 10, confidence: 0.3, fallbackUsed: 'global' }
+    }
+    
+    return { 
+      hour: contactBestTime.bestHour, 
+      confidence: contactBestTime.confidence,
+      fallbackUsed: 'none'
+    }
+  }
+
+  const getOptimalSendTime = (audienceId: string, contentType?: string): Date => {
+    const audience = audiences.find(a => a.id === audienceId)
+    if (!audience) return new Date()
+    
+    const audienceContacts = audience.contacts
+    const bestTimes = audienceContacts.map(contact => calculateBestTime(contact.id))
+    
+    // Calculate weighted average of best times
+    const totalWeight = bestTimes.reduce((sum, bt) => sum + bt.confidence, 0)
+    const weightedHour = totalWeight > 0 
+      ? Math.round(bestTimes.reduce((sum, bt) => sum + (bt.hour * bt.confidence), 0) / totalWeight)
+      : 10 // Default to 10 AM
+    
+    // Content type adjustments
+    const content = contentTypes.find(ct => ct.id === contentType)
+    let adjustedHour = weightedHour
+    
+    if (content?.category === 'breaking' || content?.urgencyLevel === 'urgent') {
+      // Breaking news: send immediately, but respect minimum hour
+      adjustedHour = Math.max(new Date().getHours(), 8)
+    } else if (content?.marketHoursOptimal) {
+      // Market hours content: 9-17h weekdays
+      adjustedHour = Math.max(9, Math.min(17, weightedHour))
+    }
+    
+    const sendTime = new Date()
+    sendTime.setHours(adjustedHour, 0, 0, 0)
+    
+    // If time has passed today, schedule for tomorrow
+    if (sendTime <= new Date()) {
+      sendTime.setDate(sendTime.getDate() + 1)
+    }
+    
+    return sendTime
+  }
+
+  const getBestTimeInsights = (audienceId: string): { 
+    optimalHour: number
+    expectedLift: number
+    confidence: number
+    fallbackReason?: string
+  } => {
+    const audience = audiences.find(a => a.id === audienceId)
+    if (!audience) return { optimalHour: 10, expectedLift: 0, confidence: 0 }
+    
+    const audienceContacts = audience.contacts
+    const bestTimes = audienceContacts.map(contact => calculateBestTime(contact.id))
+    
+    const validBestTimes = bestTimes.filter(bt => bt.fallbackUsed === 'none')
+    const fallbackCount = bestTimes.length - validBestTimes.length
+    
+    if (validBestTimes.length === 0) {
+      return { 
+        optimalHour: 10, 
+        expectedLift: 0, 
+        confidence: 0,
+        fallbackReason: 'insufficient-data'
+      }
+    }
+    
+    const avgConfidence = validBestTimes.reduce((sum, bt) => sum + bt.confidence, 0) / validBestTimes.length
+    const totalWeight = validBestTimes.reduce((sum, bt) => sum + bt.confidence, 0)
+    const optimalHour = Math.round(
+      validBestTimes.reduce((sum, bt) => sum + (bt.hour * bt.confidence), 0) / totalWeight
+    )
+    
+    // Expected lift based on data quality and financial industry benchmarks
+    const expectedLift = Math.min(25, avgConfidence * 30 + (validBestTimes.length / audienceContacts.length) * 20)
+    
+    return {
+      optimalHour,
+      expectedLift: Math.round(expectedLift),
+      confidence: avgConfidence,
+      fallbackReason: fallbackCount > audienceContacts.length * 0.5 ? 'partial-data' : undefined
+    }
+  }
 
   // Actions
   const createAudience = (audienceData: Omit<Audience, 'id' | 'contacts' | 'size' | 'updatedAt'>) => {
@@ -290,6 +538,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     contacts,
     audiences,
     campaigns,
+    bestTimeData,
+    contentTypes,
     totalContacts,
     dailyRevenue,
     avgERP,
@@ -298,6 +548,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updateAudience,
     scheduleCampaign,
     pauseCampaign,
+    calculateBestTime,
+    getOptimalSendTime,
+    getBestTimeInsights,
     validateFrequencyCap,
     getOverlapPercentage,
     loading,
