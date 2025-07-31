@@ -9,8 +9,9 @@ import { GuardrailsBanner } from "@/components/GuardrailsBanner";
 import { BestTimeWidget } from "@/components/BestTimeWidget";
 import { BackupToggle } from "@/components/BackupToggle";
 import { SmartTagBuilder } from "@/components/SmartTagBuilder";
+import { RFMMatrixWidget } from "@/components/RFMMatrixWidget";
 import { segments, tags, lists, guardrailsData } from "@/mocks/demoData";
-import { Users, Tag, List, Calendar, TrendingUp } from "lucide-react";
+import { Users, Tag, List, Calendar, TrendingUp, BarChart } from "lucide-react";
 
 export function AudiencePanel() {
   const { tipo } = useParams<{ tipo: string }>();
@@ -96,9 +97,21 @@ export function AudiencePanel() {
                   </div>
                   <div className="space-y-4">
                     {tipo === "segmentos" && (
-                      <BestTimeWidget audienceId={item.id} />
+                      <>
+                        <BestTimeWidget audienceId={item.id} />
+                        <RFMMatrixWidget segmentId={item.id} />
+                      </>
                     )}
                     <BackupToggle />
+                    
+                    {tipo === "segmentos" && (
+                      <div className="pt-4 border-t">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <BarChart className="w-3 h-3 mr-2" />
+                          Comparar com Outro Segmento
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

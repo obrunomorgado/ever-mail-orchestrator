@@ -13,7 +13,10 @@ import {
   List,
   Thermometer,
   Trash2,
-  GitBranch
+  GitBranch,
+  FileText,
+  BookOpen,
+  Database
 } from "lucide-react"
 
 import {
@@ -46,6 +49,10 @@ const toolsItems = [
   { title: "Warm-up", url: "/warmup", icon: Thermometer },
   { title: "Automação", url: "/automation", icon: GitBranch },
   { title: "Limpeza", url: "/cleaning", icon: Trash2 },
+  { title: "Macros", url: "/macros", icon: FileText },
+  { title: "Receitas", url: "/receitas", icon: BookOpen },
+  { title: "Backfill", url: "/backfill", icon: Database },
+  { title: "Análise RFM", url: "/rfm-analysis", icon: BarChart3 },
 ];
 
 const reportItems = [

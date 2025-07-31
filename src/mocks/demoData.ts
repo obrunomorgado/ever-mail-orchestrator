@@ -112,6 +112,149 @@ export const lists = [
   }
 ];
 
+// New data for missing features
+export const macros = [
+  {
+    id: "macro_welcome",
+    name: "Boas-vindas Padrão",
+    type: "template",
+    category: "onboarding",
+    subject: "Bem-vindo(a) à nossa comunidade!",
+    content: "Olá {{first_name}},\n\nFicamos muito felizes em tê-lo(a) conosco!\n\nVocê pode esperar:\n- Conteúdo exclusivo\n- Ofertas especiais\n- Dicas valiosas\n\nAtenciosamente,\nEquipe {{company_name}}",
+    variables: ["first_name", "company_name", "email"],
+    lastModified: "2024-01-15",
+    usage: 2847
+  },
+  {
+    id: "macro_cart_abandon",
+    name: "Carrinho Abandonado",
+    type: "automation",
+    category: "ecommerce",
+    subject: "Você esqueceu algo no seu carrinho 🛒",
+    content: "Oi {{first_name}},\n\nNotamos que você deixou alguns itens incríveis no seu carrinho:\n\n{{cart_items}}\n\nQue tal finalizar sua compra? Temos {{discount_code}} especial para você!\n\nFinalizar compra: {{checkout_url}}",
+    variables: ["first_name", "cart_items", "discount_code", "checkout_url", "cart_value"],
+    lastModified: "2024-01-12",
+    usage: 1623
+  },
+  {
+    id: "macro_reactivation",
+    name: "Reativação 30d",
+    type: "campaign",
+    category: "retention",
+    subject: "Sentimos sua falta! Que tal uma oferta especial?",
+    content: "Olá {{first_name}},\n\nFaz um tempo que não te vemos por aqui. Para te conquistar de volta, preparamos uma oferta imperdível:\n\n🎁 {{discount_percentage}}% OFF em toda a loja\n⏰ Válido até {{expiry_date}}\n\nUsar cupom: {{coupon_code}}\n\nVolte logo! ❤️",
+    variables: ["first_name", "discount_percentage", "expiry_date", "coupon_code"],
+    lastModified: "2024-01-10",
+    usage: 956
+  }
+];
+
+export const recipes = [
+  {
+    id: "recipe_welcome_series",
+    name: "Série de Boas-vindas (5 emails)",
+    category: "onboarding",
+    description: "Sequência completa para novos assinantes com conteúdo de valor e primeira conversão",
+    difficulty: "Fácil",
+    duration: "7 dias",
+    expectedROI: "R$ 45/lead",
+    tags: ["email-marketing", "automation", "conversion"],
+    steps: [
+      { day: 0, email: "Boas-vindas + Confirmação", ctr: 0.28 },
+      { day: 1, email: "História da marca + Valores", ctr: 0.22 },
+      { day: 3, email: "Produto mais vendido", ctr: 0.18 },
+      { day: 5, email: "Depoimentos de clientes", ctr: 0.15 },
+      { day: 7, email: "Oferta especial primeiro pedido", ctr: 0.25 }
+    ],
+    metrics: {
+      openRate: 0.42,
+      clickRate: 0.08,
+      conversionRate: 0.12,
+      unsubscribeRate: 0.02
+    }
+  },
+  {
+    id: "recipe_black_friday",
+    name: "Black Friday Countdown",
+    category: "promocional",
+    description: "Campanha progressiva com urgência crescente para maximizar vendas na Black Friday",
+    difficulty: "Médio",
+    duration: "14 dias",
+    expectedROI: "R$ 156/lead",
+    tags: ["promocional", "urgencia", "ecommerce"],
+    steps: [
+      { day: -14, email: "Aviso: Black Friday chegando", ctr: 0.15 },
+      { day: -7, email: "Prévia dos produtos em oferta", ctr: 0.22 },
+      { day: -3, email: "Últimos dias para se preparar", ctr: 0.28 },
+      { day: -1, email: "24h para começar!", ctr: 0.35 },
+      { day: 0, email: "AGORA! Black Friday começou", ctr: 0.45 },
+      { day: 1, email: "Últimas horas - ofertas acabando", ctr: 0.38 }
+    ],
+    metrics: {
+      openRate: 0.38,
+      clickRate: 0.12,
+      conversionRate: 0.18,
+      unsubscribeRate: 0.03
+    }
+  },
+  {
+    id: "recipe_win_back",
+    name: "Reativação de Inativos",
+    category: "retention",
+    description: "Sequência para reativar clientes que não abrem emails há 60+ dias",
+    difficulty: "Avançado",
+    duration: "21 dias",
+    expectedROI: "R$ 23/lead",
+    tags: ["reativacao", "retention", "segmentacao"],
+    steps: [
+      { day: 0, email: "Sentimos sua falta - pesquisa", ctr: 0.08 },
+      { day: 7, email: "Conteúdo de valor (sem venda)", ctr: 0.12 },
+      { day: 14, email: "Oferta especial de retorno", ctr: 0.15 },
+      { day: 21, email: "Última chance - descadastrar?", ctr: 0.18 }
+    ],
+    metrics: {
+      openRate: 0.18,
+      clickRate: 0.04,
+      conversionRate: 0.06,
+      unsubscribeRate: 0.15
+    }
+  }
+];
+
+export const backfillData = {
+  sources: [
+    { id: "ecommerce", name: "E-commerce Platform", records: 450000, status: "connected" },
+    { id: "crm", name: "CRM System", records: 280000, status: "connected" },
+    { id: "analytics", name: "Google Analytics", records: 1200000, status: "connected" },
+    { id: "social", name: "Social Media APIs", records: 85000, status: "pending" }
+  ],
+  history: [
+    { date: "2024-01-15", source: "ecommerce", records: 15000, status: "completed", duration: "2h 15m" },
+    { date: "2024-01-14", source: "crm", records: 8500, status: "completed", duration: "1h 45m" },
+    { date: "2024-01-13", source: "analytics", records: 125000, status: "completed", duration: "4h 30m" },
+    { date: "2024-01-12", source: "social", records: 2200, status: "failed", duration: "0h 15m" }
+  ]
+};
+
+export const rfmMatrix = [
+  { recency: 5, frequency: 5, monetary: 5, segment: "Champions", count: 12500, color: "#10B981" },
+  { recency: 5, frequency: 4, monetary: 5, segment: "Champions", count: 8900, color: "#10B981" },
+  { recency: 4, frequency: 5, monetary: 5, segment: "Champions", count: 7200, color: "#10B981" },
+  { recency: 5, frequency: 5, monetary: 4, segment: "Loyal Customers", count: 15600, color: "#3B82F6" },
+  { recency: 5, frequency: 4, monetary: 4, segment: "Loyal Customers", count: 11800, color: "#3B82F6" },
+  { recency: 4, frequency: 5, monetary: 4, segment: "Loyal Customers", count: 9400, color: "#3B82F6" },
+  { recency: 5, frequency: 3, monetary: 5, segment: "Potential Loyalists", count: 18700, color: "#8B5CF6" },
+  { recency: 4, frequency: 3, monetary: 4, segment: "Potential Loyalists", count: 16200, color: "#8B5CF6" },
+  { recency: 3, frequency: 3, monetary: 3, segment: "New Customers", count: 25400, color: "#06B6D4" },
+  { recency: 4, frequency: 2, monetary: 3, segment: "Promising", count: 14500, color: "#84CC16" },
+  { recency: 3, frequency: 2, monetary: 2, segment: "Need Attention", count: 22800, color: "#F59E0B" },
+  { recency: 2, frequency: 2, monetary: 2, segment: "About to Sleep", count: 19600, color: "#F97316" },
+  { recency: 2, frequency: 1, monetary: 2, segment: "At Risk", count: 28900, color: "#EF4444" },
+  { recency: 1, frequency: 1, monetary: 1, segment: "Cannot Lose Them", count: 8700, color: "#DC2626" },
+  { recency: 1, frequency: 2, monetary: 1, segment: "Hibernating", count: 35600, color: "#7F1D1D" },
+  { recency: 1, frequency: 1, monetary: 2, segment: "Lost", count: 45200, color: "#450A0A" }
+];
+
 export const heatMapData = Array.from({ length: 24 }, (_, hour) =>
   Array.from({ length: 7 }, (_, day) => ({
     hour,
