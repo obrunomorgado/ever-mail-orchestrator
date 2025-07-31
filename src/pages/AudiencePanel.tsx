@@ -10,6 +10,7 @@ import { BestTimeWidget } from "@/components/BestTimeWidget";
 import { BackupToggle } from "@/components/BackupToggle";
 import { SmartTagBuilder } from "@/components/SmartTagBuilder";
 import { RFMMatrixWidget } from "@/components/RFMMatrixWidget";
+import { SegmentBuilder } from "@/components/SegmentBuilder";
 import { segments, tags, lists, guardrailsData } from "@/mocks/demoData";
 import { Users, Tag, List, Calendar, TrendingUp, BarChart } from "lucide-react";
 
@@ -129,6 +130,20 @@ export function AudiencePanel() {
       </CardContent>
     </Card>
   );
+
+  // Show Segment Builder for "segmentos" tipo
+  if (tipo === "segmentos") {
+    return (
+      <div className="space-y-6">
+        <GuardrailsBanner 
+          spamRate={guardrailsData.spamRate}
+          bounceRate={guardrailsData.bounceRate}
+          unsubscribeRate={guardrailsData.unsubscribeRate}
+        />
+        <SegmentBuilder />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
