@@ -50,6 +50,42 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## 🚀 Demo EverInbox
+
+### Quick Start
+1. `npm install && npm run dev`
+2. Explore Sidebar ► Audiências, Ferramentas, Relatórios
+3. Tudo roda com dados mock ― zero backend necessário
+
+### Features Implementadas
+**Audiências:**
+- Segmentos (VIP 30d, MA-2C, SE-90) com auto/manual
+- Tags automáticas e Smart-Tag Builder
+- Listas com origem Facebook/manual
+- Overlap Checker entre segmentos
+
+**Ferramentas:**
+- Planner com drag-and-drop e receita estimada
+- Warm-up Wizard (3 etapas: IP, Cronograma, Resumo)
+- Automação Canvas com react-flow (3 nós)
+- Limpeza de listas com candidatos para remoção
+- Backfill automático
+- Biblioteca de Macros e Receitas
+
+**Análises:**
+- Heat Map 24×7 com eRPM colorido
+- Guardrails (spam/bounce rates)
+- Best Time Widget por segmento
+- RFM Matrix com métricas
+- Frequency Cap Controls
+
+### Navegação
+- **Audiências** → `/audiencias/segmentos`, `/audiencias/tags`, `/audiencias/listas`
+- **Planner** → `/planner-new` (drag-and-drop funcional)
+- **Heat Map** → `/reports` (grid 24×7 interativo)
+- **Warm-up** → `/warmup` (wizard 3 passos)
+- **Automação** → `/automation` (canvas react-flow)
+
 ## What technologies are used for this project?
 
 This project is built with:
