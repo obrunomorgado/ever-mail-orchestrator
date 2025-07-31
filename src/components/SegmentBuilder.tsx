@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Minus, Target, Users, Filter, Sparkles, Crown, Clock, TrendingDown, AlertCircle } from "lucide-react";
+import { Plus, Minus, Target, Users, Filter, Sparkles, Crown, Clock, TrendingDown, AlertCircle, Edit2, X, GripVertical } from "lucide-react";
 
 interface SegmentCriteria {
   id: string;
@@ -276,6 +276,7 @@ export function SegmentBuilder() {
   const [selectedField, setSelectedField] = useState("");
   const [selectedOperator, setSelectedOperator] = useState("");
   const [criteriaValue, setCriteriaValue] = useState("");
+  const [editingCriteria, setEditingCriteria] = useState<string | null>(null);
 
   const addCriteria = (type: 'include' | 'exclude') => {
     if (selectedCategory && selectedField && selectedOperator) {
@@ -310,6 +311,26 @@ export function SegmentBuilder() {
 
   const removeCriteria = (id: string) => {
     setCriteria(criteria.filter(c => c.id !== id));
+  };
+
+  const updateCriteria = (id: string, updates: Partial<SegmentCriteria>) => {
+    setCriteria(criteria.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const moveCriteria = (id: string, newType: 'include' | 'exclude') => {
+    updateCriteria(id, { type: newType });
+  };
+
+  const addQuickCriteria = (field: string, operator: string, value: string, type: 'include' | 'exclude') => {
+    const newCriteria: SegmentCriteria = {
+      id: Date.now().toString(),
+      category: "Engajamento",
+      field,
+      operator,
+      value,
+      type
+    };
+    setCriteria([...criteria, newCriteria]);
   };
 
   const includeCriteria = criteria.filter(c => c.type === 'include');
@@ -438,99 +459,152 @@ export function SegmentBuilder() {
           </CardContent>
         </Card>
 
-        {/* Criteria Builder */}
+        {/* Quick Criteria + Manual Builder */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Adicionar Critério</CardTitle>
-            <CardDescription>Defina quem deve entrar ou sair do segmento</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Plus className="w-5 h-5" />
+              Adicionar Critério
+            </CardTitle>
+            <CardDescription>Atalhos rápidos ou configuração manual</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {criteriaCategories.map((cat) => (
-                    <SelectItem key={cat.name} value={cat.name}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Quick criteria shortcuts */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Atalhos Rápidos</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={() => addQuickCriteria("Aberturas totais", "≥ 10", "", "include")}
+                  variant="outline" 
+                  size="sm"
+                  className="justify-start text-xs"
+                >
+                  + Muitas Aberturas
+                </Button>
+                <Button 
+                  onClick={() => addQuickCriteria("Cliques totais", "≥ 3", "", "include")}
+                  variant="outline" 
+                  size="sm"
+                  className="justify-start text-xs"
+                >
+                  + Muitos Cliques
+                </Button>
+                <Button 
+                  onClick={() => addQuickCriteria("Aberturas totais", "= 0", "", "include")}
+                  variant="outline" 
+                  size="sm"
+                  className="justify-start text-xs"
+                >
+                  + Sem Aberturas
+                </Button>
+                <Button 
+                  onClick={() => addQuickCriteria("Cliques totais", "= 0", "", "include")}
+                  variant="outline" 
+                  size="sm"
+                  className="justify-start text-xs"
+                >
+                  + Sem Cliques
+                </Button>
+              </div>
             </div>
 
-            {selectedCategory && (
+            {/* Manual criteria builder */}
+            <div className="border-t pt-4 space-y-3">
+              <Label className="text-sm font-medium">Configuração Manual</Label>
+              
               <div className="space-y-2">
-                <Label>Campo</Label>
-                <Select value={selectedField} onValueChange={setSelectedField}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o campo" />
+                <Label className="text-xs">Categoria</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {criteriaCategories
-                      .find(cat => cat.name === selectedCategory)
-                      ?.fields.map((field) => (
-                        <SelectItem key={field.id} value={field.label}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
+                    {criteriaCategories.map((category) => (
+                      <SelectItem key={category.name} value={category.name}>
+                        <div className="flex items-center gap-2">
+                          <category.icon className="w-4 h-4" />
+                          {category.name}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            {selectedField && (
-              <div className="space-y-2">
-                <Label>Operador</Label>
-                <Select value={selectedOperator} onValueChange={setSelectedOperator}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o operador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {criteriaCategories
-                      .find(cat => cat.name === selectedCategory)
-                      ?.fields.find(field => field.label === selectedField)
-                      ?.operators.map((op) => (
-                        <SelectItem key={op} value={op}>
-                          {op}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+              {selectedCategory && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Campo</Label>
+                  <Select value={selectedField} onValueChange={setSelectedField}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Selecione um campo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {criteriaCategories
+                        .find(cat => cat.name === selectedCategory)
+                        ?.fields.map((field) => (
+                          <SelectItem key={field.id} value={field.label}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-            {selectedOperator && (
-              <div className="space-y-2">
-                <Label>Valor</Label>
-                <Input
-                  value={criteriaValue}
-                  onChange={(e) => setCriteriaValue(e.target.value)}
-                  placeholder="Digite o valor"
-                />
-              </div>
-            )}
+              {selectedField && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Operador</Label>
+                  <Select value={selectedOperator} onValueChange={setSelectedOperator}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Selecione um operador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {criteriaCategories
+                        .find(cat => cat.name === selectedCategory)
+                        ?.fields.find(field => field.label === selectedField)
+                        ?.operators.map((operator) => (
+                          <SelectItem key={operator} value={operator}>
+                            {operator}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => addCriteria('include')} 
-                className="flex-1"
-                disabled={!selectedCategory || !selectedField || !selectedOperator}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Incluir
-              </Button>
-              <Button 
-                onClick={() => addCriteria('exclude')} 
-                variant="destructive" 
-                className="flex-1"
-                disabled={!selectedCategory || !selectedField || !selectedOperator}
-              >
-                <Minus className="w-4 h-4 mr-2" />
-                Excluir
-              </Button>
+              {selectedOperator && !["= 0", "1-4", "5-9", "≥ 10", "1-2", "≥ 3"].includes(selectedOperator) && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Valor</Label>
+                  <Input
+                    placeholder="Digite o valor"
+                    value={criteriaValue}
+                    onChange={(e) => setCriteriaValue(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+              )}
+
+              {selectedCategory && selectedField && selectedOperator && (
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    onClick={() => addCriteria('include')} 
+                    className="flex-1"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Incluir
+                  </Button>
+                  <Button 
+                    onClick={() => addCriteria('exclude')} 
+                    variant="outline" 
+                    className="flex-1"
+                    size="sm"
+                  >
+                    <Minus className="w-4 h-4 mr-1" />
+                    Excluir
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -568,48 +642,40 @@ export function SegmentBuilder() {
             )}
 
             {includeCriteria.length > 0 && (
-              <div>
-                <h4 className="font-medium text-green-600 mb-2 flex items-center gap-1">
-                  <Target className="w-4 h-4" />
-                  Incluir:
-                </h4>
+              <div className="space-y-2">
+                <Label className="text-green-600 font-medium">Incluir quando:</Label>
                 <div className="space-y-2">
-                  {includeCriteria.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between p-2 bg-green-50 rounded text-sm border border-green-200">
-                      <span className="font-medium">{c.field} {c.operator} {c.value}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeCriteria(c.id)}
-                        className="hover:bg-green-100"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                    </div>
+                  {includeCriteria.map((criterion) => (
+                    <EditableCriterion
+                      key={criterion.id}
+                      criterion={criterion}
+                      onUpdate={updateCriteria}
+                      onRemove={removeCriteria}
+                      onMove={moveCriteria}
+                      isEditing={editingCriteria === criterion.id}
+                      setEditing={setEditingCriteria}
+                      type="include"
+                    />
                   ))}
                 </div>
               </div>
             )}
 
             {excludeCriteria.length > 0 && (
-              <div>
-                <h4 className="font-medium text-red-600 mb-2 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  Excluir:
-                </h4>
+              <div className="space-y-2">
+                <Label className="text-red-600 font-medium">Excluir quando:</Label>
                 <div className="space-y-2">
-                  {excludeCriteria.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between p-2 bg-red-50 rounded text-sm border border-red-200">
-                      <span className="font-medium">{c.field} {c.operator} {c.value}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeCriteria(c.id)}
-                        className="hover:bg-red-100"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                    </div>
+                  {excludeCriteria.map((criterion) => (
+                    <EditableCriterion
+                      key={criterion.id}
+                      criterion={criterion}
+                      onUpdate={updateCriteria}
+                      onRemove={removeCriteria}
+                      onMove={moveCriteria}
+                      isEditing={editingCriteria === criterion.id}
+                      setEditing={setEditingCriteria}
+                      type="exclude"
+                    />
                   ))}
                 </div>
               </div>
@@ -644,6 +710,128 @@ export function SegmentBuilder() {
             )}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+// Editable criterion component
+interface EditableCriterionProps {
+  criterion: SegmentCriteria;
+  onUpdate: (id: string, updates: Partial<SegmentCriteria>) => void;
+  onRemove: (id: string) => void;
+  onMove: (id: string, newType: 'include' | 'exclude') => void;
+  isEditing: boolean;
+  setEditing: (id: string | null) => void;
+  type: 'include' | 'exclude';
+}
+
+function EditableCriterion({ 
+  criterion, 
+  onUpdate, 
+  onRemove, 
+  onMove, 
+  isEditing, 
+  setEditing, 
+  type 
+}: EditableCriterionProps) {
+  const [tempOperator, setTempOperator] = useState(criterion.operator);
+  const [tempValue, setTempValue] = useState(criterion.value);
+
+  const bgColor = type === 'include' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+  const textColor = type === 'include' ? 'text-green-600' : 'text-red-600';
+  const hoverColor = type === 'include' ? 'hover:bg-green-100' : 'hover:bg-red-100';
+
+  const getAvailableOperators = () => {
+    const category = criteriaCategories.find(cat => 
+      cat.fields.some(field => field.label === criterion.field)
+    );
+    const field = category?.fields.find(field => field.label === criterion.field);
+    return field?.operators || [];
+  };
+
+  const handleSave = () => {
+    onUpdate(criterion.id, { operator: tempOperator, value: tempValue });
+    setEditing(null);
+  };
+
+  const handleCancel = () => {
+    setTempOperator(criterion.operator);
+    setTempValue(criterion.value);
+    setEditing(null);
+  };
+
+  if (isEditing) {
+    return (
+      <div className={`flex items-center gap-2 p-2 border rounded ${bgColor}`}>
+        <GripVertical className="w-4 h-4 text-muted-foreground cursor-move" />
+        <span className="text-sm min-w-0 flex-shrink-0">{criterion.field}</span>
+        
+        <Select value={tempOperator} onValueChange={setTempOperator}>
+          <SelectTrigger className="h-7 w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getAvailableOperators().map((op) => (
+              <SelectItem key={op} value={op}>{op}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {!["= 0", "1-4", "5-9", "≥ 10", "1-2", "≥ 3"].includes(tempOperator) && (
+          <Input
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            className="h-7 w-16"
+            placeholder="Valor"
+          />
+        )}
+
+        <div className="flex gap-1 ml-auto">
+          <Button onClick={handleSave} size="sm" variant="ghost" className="h-6 w-6 p-0">
+            ✓
+          </Button>
+          <Button onClick={handleCancel} size="sm" variant="ghost" className="h-6 w-6 p-0">
+            ✕
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center justify-between p-2 border rounded group ${bgColor}`}>
+      <div className="flex items-center gap-2">
+        <GripVertical className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-move" />
+        <span className="text-sm">{criterion.field} {criterion.operator} {criterion.value}</span>
+      </div>
+      
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+        <Button
+          onClick={() => setEditing(criterion.id)}
+          variant="ghost"
+          size="sm"
+          className={`h-6 w-6 p-0 ${textColor} ${hoverColor}`}
+        >
+          <Edit2 className="w-3 h-3" />
+        </Button>
+        <Button
+          onClick={() => onMove(criterion.id, type === 'include' ? 'exclude' : 'include')}
+          variant="ghost"
+          size="sm"
+          className={`h-6 w-6 p-0 ${textColor} ${hoverColor}`}
+          title={`Mover para ${type === 'include' ? 'excluir' : 'incluir'}`}
+        >
+          <GripVertical className="w-3 h-3" />
+        </Button>
+        <Button
+          onClick={() => onRemove(criterion.id)}
+          variant="ghost"
+          size="sm"
+          className={`h-6 w-6 p-0 ${textColor} ${hoverColor}`}
+        >
+          <X className="w-3 h-3" />
+        </Button>
       </div>
     </div>
   );
