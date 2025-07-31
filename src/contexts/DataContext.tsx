@@ -312,8 +312,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Initialize data
   useEffect(() => {
     const initializeData = () => {
-      console.log('Generating 3M contacts with Best Time data...')
-      const generatedContacts = generateContacts(3000000)
+      console.log('Generating 500K contacts with Best Time data...')
+      const generatedContacts = generateContacts(500000)
       const generatedAudiences = generateAudiences(generatedContacts)
       const generatedBestTimeData = generateBestTimeData(generatedContacts)
       
