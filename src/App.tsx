@@ -11,6 +11,7 @@ import { GlobalProvider } from "@/contexts/GlobalContext";
 import { DataProvider } from "@/contexts/DataContext";
 import { AppHeader } from "@/components/AppHeader";
 import Dashboard from "./pages/Dashboard";
+import Central from "./pages/Central";
 import { PlannerPage } from "./pages/PlannerPage";
 import { AudiencePanel } from "./pages/AudiencePanel";
 import { HeatMapPanel } from "./pages/HeatMapPanel";
@@ -50,6 +51,7 @@ const App = () => (
                 <main className="flex-1 p-6">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/central" element={<Central />} />
                   <Route path="/planner-new" element={<PlannerPage />} />
                   <Route path="/audiencias/:tipo" element={<AudiencePanel />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />

@@ -16,7 +16,8 @@ import {
   GitBranch,
   FileText,
   BookOpen,
-  Database
+  Database,
+  Target
 } from "lucide-react"
 
 import {
@@ -34,6 +35,7 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
+  { title: "Central", url: "/central", icon: Target },
 ];
 
 const audienceItems = [
