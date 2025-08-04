@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, TrendingUp, Users, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, Clock, TrendingUp, Users, Zap, AlertTriangle, CheckCircle, Menu, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { usePlanner, CampaignSegment, PlannedCampaign } from '@/contexts/PlannerContext';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -16,7 +18,11 @@ import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautif
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, addWeeks, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-console.log('[Planner] CalendarView component loading');
+console.log('[Planner/CalendarView] Component loading');
+
+// Constants for better performance
+const DAYS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const COOL_DOWN_OPTIONS = Array.from({ length: 14 }, (_, i) => i + 1);
 
 interface SlotCardProps {
   campaign: PlannedCampaign;
@@ -29,16 +35,29 @@ interface CalendarViewProps {
   segments: CampaignSegment[];
 }
 
-const SlotCard: React.FC<SlotCardProps> = ({ campaign, index, timeSlot, violations = [] }) => {
+// Memoized SlotCard for performance
+const SlotCard = React.memo<SlotCardProps>(({ campaign, index, timeSlot, violations = [] }) => {
   const { getOptimalTime } = usePlanner();
+  console.log('[Planner/CalendarView] Rendering SlotCard for:', campaign.name);
+  
   const optimalTime = getOptimalTime(campaign.id, campaign.campaignType, campaign.vertical);
   const isOptimalTime = timeSlot === `${optimalTime.hour.toString().padStart(2, '0')}:00`;
   
   const hasViolations = violations.length > 0;
   const highPriorityViolation = violations.find(v => v.severity === 'high');
+  const mediumPriorityViolation = violations.find(v => v.severity === 'medium');
+  const lowPriorityViolation = violations.find(v => v.severity === 'low');
+  
+  // Violation styling based on severity
+  const getViolationStyling = () => {
+    if (highPriorityViolation) return 'border-destructive border-2';
+    if (mediumPriorityViolation) return 'border-warning border-2';
+    if (lowPriorityViolation) return 'border-muted-foreground border-2';
+    return '';
+  };
   
   return (
-    <Draggable draggableId={`${campaign.segmentId}-${timeSlot}`} index={index}>
+    <Draggable draggableId={`${campaign.segmentId}@${timeSlot}`} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -49,7 +68,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ campaign, index, timeSlot, violatio
           <Card className={`
             text-xs cursor-move relative overflow-hidden
             ${snapshot.isDragging ? 'ring-2 ring-primary shadow-xl z-50' : ''}
-            ${hasViolations ? 'border-destructive border-2' : ''}
+            ${getViolationStyling()}
             ${isOptimalTime ? 'border-success border-l-4' : ''}
             hover:shadow-md transition-all
           `}>
@@ -75,7 +94,33 @@ const SlotCard: React.FC<SlotCardProps> = ({ campaign, index, timeSlot, violatio
                       <AlertTriangle className="h-3 w-3 text-destructive" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{highPriorityViolation.message}</p>
+                      <p className="text-destructive font-medium">CRÍTICO: {highPriorityViolation.message}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              
+              {!highPriorityViolation && mediumPriorityViolation && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <AlertTriangle className="h-3 w-3 text-warning" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-warning font-medium">ATENÇÃO: {mediumPriorityViolation.message}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              
+              {!highPriorityViolation && !mediumPriorityViolation && lowPriorityViolation && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-muted-foreground">INFO: {lowPriorityViolation.message}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -137,47 +182,57 @@ const SlotCard: React.FC<SlotCardProps> = ({ campaign, index, timeSlot, violatio
       )}
     </Draggable>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  return (
+    prevProps.campaign.id === nextProps.campaign.id &&
+    prevProps.timeSlot === nextProps.timeSlot &&
+    prevProps.violations?.length === nextProps.violations?.length
+  );
+});
 
 export function CalendarView({ segments }: CalendarViewProps) {
   const { 
     state, 
     moveSegment, 
     setDailyClickGoal, 
+    setCoolDown,
     setViewType, 
     setCurrentPeriod, 
     calculateProgressToGoal 
   } = usePlanner();
   
-  const { defaults, validateTimeSlot } = usePlannerDefaults();
+  const { defaults, validateTimeSlot, isLoading: defaultsLoading } = usePlannerDefaults();
   const isMobile = useIsMobile();
   
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [showOverlapHeatmap, setShowOverlapHeatmap] = useState(false);
   const [localClickGoal, setLocalClickGoal] = useState(state.dailyClickGoal);
+  const [localFrequencyCap, setLocalFrequencyCap] = useState(state.frequencyCap);
+  const [localCoolDown, setLocalCoolDown] = useState(state.coolDown);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  console.log('[Planner] CalendarView rendering with view type:', state.viewType);
+  console.log('[Planner/CalendarView] Rendering with view type:', state.viewType);
 
-  // Progress calculation
-  const progress = calculateProgressToGoal();
-  
-  // Week/Month navigation
-  const navigatePeriod = (direction: 'prev' | 'next') => {
-    const current = state.currentPeriod;
-    let newPeriod: Date;
-    
-    if (state.viewType === 'week') {
-      newPeriod = direction === 'next' ? addWeeks(current, 1) : addWeeks(current, -1);
-    } else {
-      newPeriod = direction === 'next' ? addMonths(current, 1) : addMonths(current, -1);
+  // Apply defaults on mount - CRITICAL FIX
+  useEffect(() => {
+    if (!defaultsLoading && defaults) {
+      console.log('[Planner/CalendarView] Applying calculated defaults:', defaults);
+      setDailyClickGoal(defaults.dailyClickGoal);
+      setCoolDown(defaults.coolDown);
+      setLocalClickGoal(defaults.dailyClickGoal);
+      setLocalCoolDown(defaults.coolDown);
     }
-    
-    setCurrentPeriod(newPeriod);
-    console.log('[Planner] Navigated to period:', newPeriod);
-  };
+  }, [defaultsLoading, defaults, setDailyClickGoal, setCoolDown]);
 
-  // Generate time slots for the current period
+  // Memoized progress calculation for performance
+  const progress = useMemo(() => calculateProgressToGoal(), [calculateProgressToGoal]);
+  
+  // Memoized timeSlots calculation to avoid re-renders
   const timeSlots = useMemo(() => {
+    const campaignsJson = JSON.stringify(state.plannedCampaigns);
+    console.log('[Planner/CalendarView] Recalculating timeSlots');
+    
     if (state.viewType === 'week') {
       const weekStart = startOfWeek(state.currentPeriod, { weekStartsOn: 1 });
       const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -215,15 +270,30 @@ export function CalendarView({ segments }: CalendarViewProps) {
         campaigns: Object.values(state.plannedCampaigns).flat()
       }));
     }
-  }, [state.viewType, state.currentPeriod, state.anchorTimes, state.plannedCampaigns]);
+  }, [state.viewType, state.currentPeriod, state.anchorTimes, JSON.stringify(state.plannedCampaigns)]);
+
+  // Week/Month navigation
+  const navigatePeriod = useCallback((direction: 'prev' | 'next') => {
+    const current = state.currentPeriod;
+    let newPeriod: Date;
+    
+    if (state.viewType === 'week') {
+      newPeriod = direction === 'next' ? addWeeks(current, 1) : addWeeks(current, -1);
+    } else {
+      newPeriod = direction === 'next' ? addMonths(current, 1) : addMonths(current, -1);
+    }
+    
+    setCurrentPeriod(newPeriod);
+    console.log('[Planner/CalendarView] Navigated to period:', newPeriod);
+  }, [state.viewType, state.currentPeriod, setCurrentPeriod]);
 
   // Drag and drop handlers
-  const onDragStart = (result: any) => {
+  const onDragStart = useCallback((result: any) => {
     setDraggedItem(result.draggableId);
-    console.log('[Planner] Drag started:', result.draggableId);
-  };
+    console.log('[Planner/CalendarView] Drag started:', result.draggableId);
+  }, []);
 
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = useCallback((result: DropResult) => {
     setDraggedItem(null);
     
     const { source, destination } = result;
@@ -234,32 +304,104 @@ export function CalendarView({ segments }: CalendarViewProps) {
     
     if (sourceId === destId) return;
 
-    // Extract segment ID from draggable ID
-    const segmentId = result.draggableId.split('-')[0];
+    // Extract segment ID from draggable ID (format: segmentId@timeSlot)
+    const segmentId = result.draggableId.split('@')[0];
     
-    console.log('[Planner] Moving segment:', { segmentId, from: sourceId, to: destId });
+    console.log('[Planner/CalendarView] Moving segment:', { segmentId, from: sourceId, to: destId });
     moveSegment(segmentId, sourceId, destId);
-  };
+  }, [moveSegment]);
 
-  // Handle click goal change
-  const handleClickGoalChange = (value: string) => {
+  // Handle click goal change with useCallback
+  const handleClickGoalChange = useCallback((value: string) => {
     const goal = parseInt(value) || 0;
     setLocalClickGoal(goal);
-  };
+  }, []);
 
-  const handleClickGoalSubmit = () => {
+  const handleClickGoalSubmit = useCallback(() => {
     setDailyClickGoal(localClickGoal);
-  };
+    console.log('[Planner/CalendarView] Click goal updated to:', localClickGoal);
+  }, [localClickGoal, setDailyClickGoal]);
 
-  // Render performance in sub-200ms
+  // Handle cool-down change
+  const handleCoolDownChange = useCallback((days: number) => {
+    setLocalCoolDown(days);
+    setCoolDown(days);
+    console.log('[Planner/CalendarView] Cool-down updated to:', days);
+  }, [setCoolDown]);
+
+  // Render performance tracking
   useEffect(() => {
     const startTime = performance.now();
     
     return () => {
       const endTime = performance.now();
-      console.log('[Planner] Calendar render time:', `${(endTime - startTime).toFixed(2)}ms`);
+      const renderTime = endTime - startTime;
+      console.log('[Planner/CalendarView] Render time:', `${renderTime.toFixed(2)}ms`);
+      
+      if (renderTime > 200) {
+        console.warn('[Planner/CalendarView] Slow render detected! Consider virtualization for', segments.length, 'segments');
+      }
     };
-  }, []);
+  });
+
+  // Settings sheet content
+  const SettingsSheet = () => (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Settings className="h-4 w-4" />
+          {!isMobile && <span className="ml-2">Configurações</span>}
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Configurações do Planner</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-6 pt-6">
+          {/* Frequency Cap */}
+          <div className="space-y-2">
+            <Label htmlFor="frequency-cap">Frequency Cap: {localFrequencyCap} emails/24h</Label>
+            <Slider
+              id="frequency-cap"
+              min={1}
+              max={6}
+              step={1}
+              value={[localFrequencyCap]}
+              onValueChange={(value) => setLocalFrequencyCap(value[0])}
+              className="w-full"
+            />
+          </div>
+          
+          {/* Cool-down */}
+          <div className="space-y-2">
+            <Label htmlFor="cool-down">Cool-down: {localCoolDown} dias</Label>
+            <Select value={localCoolDown.toString()} onValueChange={(value) => handleCoolDownChange(parseInt(value))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COOL_DOWN_OPTIONS.map(days => (
+                  <SelectItem key={days} value={days.toString()}>
+                    {days} {days === 1 ? 'dia' : 'dias'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Defaults info */}
+          <div className="p-3 bg-muted rounded-lg">
+            <h4 className="font-medium text-sm mb-2">Valores Calculados:</h4>
+            <div className="text-xs space-y-1">
+              <p>Meta diária: {defaults?.dailyClickGoal?.toLocaleString()} cliques</p>
+              <p>Horários-âncora: {defaults?.anchorTimes?.join(', ')}</p>
+              <p>Janela histórica: {defaults?.historyWindow} dias</p>
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 
   return (
     <div className="space-y-6">
@@ -282,6 +424,16 @@ export function CalendarView({ segments }: CalendarViewProps) {
             
             {/* Controls */}
             <div className="flex items-center gap-3">
+              {/* Mobile sidebar trigger */}
+              {isMobile && (
+                <Button variant="outline" size="sm" onClick={() => setSidebarOpen(true)}>
+                  <Menu className="h-4 w-4" />
+                </Button>
+              )}
+              
+              {/* Settings */}
+              <SettingsSheet />
+              
               {/* View Toggle */}
               <Select value={state.viewType} onValueChange={(value: 'week' | 'month') => setViewType(value)}>
                 <SelectTrigger className="w-32">
@@ -351,55 +503,97 @@ export function CalendarView({ segments }: CalendarViewProps) {
       {/* Calendar Grid */}
       <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Available Segments Sidebar */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Segmentos Disponíveis
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {segments.length} campanhas prontas
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Droppable droppableId="available">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`min-h-[200px] space-y-2 ${
-                      snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg border-2 border-dashed border-primary' : ''
-                    }`}
-                  >
-                    {segments.map((segment, index) => (
-                      <SlotCard
-                        key={segment.id}
-                        campaign={{
-                          ...segment,
-                          id: segment.id,
-                          segmentId: segment.id,
-                          estimatedRevenue: segment.size * segment.ctr * segment.erpm
-                        }}
-                        index={index}
-                        timeSlot="available"
-                      />
-                    ))}
-                    {provided.placeholder}
-                    {segments.length === 0 && (
-                      <div className="text-center text-muted-foreground text-sm py-8">
-                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Nenhum segmento disponível
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Droppable>
-            </CardContent>
-          </Card>
+          {/* Available Segments Sidebar - Hidden on mobile */}
+          {!isMobile && (
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Segmentos Disponíveis
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {segments.length} campanhas prontas
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Droppable droppableId="available">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`min-h-[200px] space-y-2 ${
+                        snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg border-2 border-dashed border-primary' : ''
+                      }`}
+                    >
+                      {segments.map((segment, index) => (
+                        <SlotCard
+                          key={segment.id}
+                          campaign={{
+                            ...segment,
+                            id: segment.id,
+                            segmentId: segment.id,
+                            estimatedRevenue: segment.size * segment.ctr * segment.erpm
+                          }}
+                          index={index}
+                          timeSlot="available"
+                        />
+                      ))}
+                      {provided.placeholder}
+                      {segments.length === 0 && (
+                        <div className="text-center text-muted-foreground text-sm py-8">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          Nenhum segmento disponível
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Droppable>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mobile Sidebar */}
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent side="left" className="w-80">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Segmentos Disponíveis
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <Droppable droppableId="available">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`min-h-[200px] space-y-2 ${
+                        snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg border-2 border-dashed border-primary' : ''
+                      }`}
+                    >
+                      {segments.map((segment, index) => (
+                        <SlotCard
+                          key={segment.id}
+                          campaign={{
+                            ...segment,
+                            id: segment.id,
+                            segmentId: segment.id,
+                            estimatedRevenue: segment.size * segment.ctr * segment.erpm
+                          }}
+                          index={index}
+                          timeSlot="available"
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            </SheetContent>
+          </Sheet>
 
           {/* Calendar Main Area */}
-          <div className="lg:col-span-3">
+          <div className={isMobile ? "col-span-1" : "lg:col-span-3"}>
             {state.viewType === 'week' ? (
               /* Weekly View */
               <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
@@ -487,7 +681,7 @@ export function CalendarView({ segments }: CalendarViewProps) {
               /* Monthly View */
               <div className="grid grid-cols-7 gap-2">
                 {/* Days of week header */}
-                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => (
+                {DAYS_PT.map(day => (
                   <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
                     {day}
                   </div>
