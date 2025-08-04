@@ -9,7 +9,10 @@ export const segments = [
     rfm: "444",
     description: "Clientes VIP com compras nos últimos 30 dias",
     tags: ["vip", "alta_conversao"],
-    lastUpdate: "2024-01-15"
+    lastUpdate: "2024-01-15",
+    timeSlot: "available",
+    campaignType: "newsletter" as const,
+    vertical: "cartao" as const
   },
   { 
     id: "seg_ma2c", 
@@ -21,7 +24,10 @@ export const segments = [
     rfm: "332",
     description: "Segmento manual de reativação - 2 compras",
     tags: ["reativacao", "manual"],
-    lastUpdate: "2024-01-10"
+    lastUpdate: "2024-01-10",
+    timeSlot: "available",
+    campaignType: "alerta" as const,
+    vertical: "emprestimo" as const
   },
   { 
     id: "seg_inativo90", 
@@ -33,7 +39,10 @@ export const segments = [
     rfm: "111",
     description: "Segmento inativo há mais de 90 dias",
     tags: ["inativo", "recuperacao"],
-    lastUpdate: "2024-01-08"
+    lastUpdate: "2024-01-08",
+    timeSlot: "available",
+    campaignType: "fechamento" as const,
+    vertical: "consorcio" as const
   },
   {
     id: "seg_new_buyers",
@@ -45,7 +54,40 @@ export const segments = [
     rfm: "345",
     description: "Primeira compra nos últimos 14 dias",
     tags: ["novos", "onboarding"],
-    lastUpdate: "2024-01-16"
+    lastUpdate: "2024-01-16",
+    timeSlot: "available",
+    campaignType: "breaking" as const,
+    vertical: "cartao" as const
+  },
+  {
+    id: "seg_cartao_premium",
+    name: "Cartão Premium",
+    auto: true,
+    size: 75000,
+    ctr: 0.21,
+    erpm: 0.28,
+    rfm: "543",
+    description: "Portadores de cartão premium ativo",
+    tags: ["premium", "cartao"],
+    lastUpdate: "2024-01-16",
+    timeSlot: "available",
+    campaignType: "newsletter" as const,
+    vertical: "cartao" as const
+  },
+  {
+    id: "seg_emprestimo_prospect",
+    name: "Prospects Empréstimo",
+    auto: false,
+    size: 132000,
+    ctr: 0.09,
+    erpm: 0.14,
+    rfm: "231",
+    description: "Prospects interessados em empréstimo",
+    tags: ["prospect", "emprestimo"],
+    lastUpdate: "2024-01-15",
+    timeSlot: "available",
+    campaignType: "fechamento" as const,
+    vertical: "emprestimo" as const
   }
 ];
 

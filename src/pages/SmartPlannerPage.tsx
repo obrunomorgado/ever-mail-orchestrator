@@ -8,23 +8,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
 import { SmartDragDrop } from '@/components/SmartDragDrop';
+import { CalendarView } from '@/components/CalendarView';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
+import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
 import { segments } from '@/mocks/demoData';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const timeSlots = ['07:00', '09:00', '12:00', '15:00', '18:00'];
 
 function SmartPlannerContent() {
-  const { state, calculateTotalRevenue, checkFrequencyViolations } = usePlanner();
+  const { 
+    state, 
+    calculateTotalRevenue, 
+    checkFrequencyViolations,
+    setDailyClickGoal,
+    setCoolDown,
+    setAnchorTimes
+  } = usePlanner();
   const { isListening, isSupported, startListening, stopListening, commands } = useVoiceCommands();
+  const { defaults, isLoading: defaultsLoading, generateInitialPlan } = usePlannerDefaults();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('planner');
   
-  // Simulate loading segments on mount
+  console.log('[Planner] SmartPlannerContent rendering with defaults:', defaults);
+  
+  // Initialize defaults when loaded
   useEffect(() => {
-    // Initialize with some segments
-    // This would typically come from your data context
-  }, []);
+    if (!defaultsLoading && defaults) {
+      console.log('[Planner] Applying calculated defaults');
+      setDailyClickGoal(defaults.dailyClickGoal);
+      setCoolDown(defaults.coolDown);
+      setAnchorTimes(defaults.anchorTimes);
+    }
+  }, [defaultsLoading, defaults, setDailyClickGoal, setCoolDown, setAnchorTimes]);
 
   const totalCampaigns = Object.values(state.plannedCampaigns).flat().length;
   const totalContacts = Object.values(state.plannedCampaigns)
@@ -89,10 +105,14 @@ function SmartPlannerContent() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="planner" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              {!isMobile && 'Planner'}
+              {!isMobile && 'Grid'}
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              {!isMobile && 'Calendário'}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <Gauge className="h-4 w-4" />
@@ -118,6 +138,19 @@ function SmartPlannerContent() {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="space-y-6">
+            {defaultsLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Carregando configurações padrão...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <CalendarView segments={segments} />
+            )}
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">

@@ -59,6 +59,12 @@ interface PlannerState {
   frequencyCap: number;
   isAutoOptimizeEnabled: boolean;
   bestTimeRecommendations: Record<string, { hour: number; confidence: number; lift: number }>;
+  // Planner 3.0 additions
+  dailyClickGoal: number;
+  coolDown: number;
+  viewType: 'week' | 'month';
+  currentPeriod: Date;
+  anchorTimes: string[];
 }
 
 type PlannerAction =
@@ -69,7 +75,12 @@ type PlannerAction =
   | { type: 'UPDATE_IMPACT'; payload: RealtimeImpact }
   | { type: 'TOGGLE_AUTO_OPTIMIZE' }
   | { type: 'SET_FREQUENCY_CAP'; payload: number }
-  | { type: 'UPDATE_BEST_TIME'; payload: { segmentId: string; hour: number; confidence: number; lift: number } };
+  | { type: 'UPDATE_BEST_TIME'; payload: { segmentId: string; hour: number; confidence: number; lift: number } }
+  | { type: 'SET_DAILY_CLICK_GOAL'; payload: number }
+  | { type: 'SET_COOL_DOWN'; payload: number }
+  | { type: 'SET_VIEW_TYPE'; payload: 'week' | 'month' }
+  | { type: 'SET_CURRENT_PERIOD'; payload: Date }
+  | { type: 'SET_ANCHOR_TIMES'; payload: string[] };
 
 const initialState: PlannerState = {
   availableSegments: [],
@@ -78,7 +89,8 @@ const initialState: PlannerState = {
     '09:00': [],
     '12:00': [],
     '15:00': [],
-    '18:00': []
+    '18:00': [],
+    '20:00': []
   },
   impact: {
     revenueChange: 0,
@@ -90,9 +102,15 @@ const initialState: PlannerState = {
   },
   history: [],
   historyIndex: -1,
-  frequencyCap: 3,
+  frequencyCap: 2, // Default to 2 emails per recipient/24h
   isAutoOptimizeEnabled: true,
-  bestTimeRecommendations: {}
+  bestTimeRecommendations: {},
+  // Planner 3.0 defaults
+  dailyClickGoal: 1200, // Will be overridden by usePlannerDefaults
+  coolDown: 3,
+  viewType: 'week',
+  currentPeriod: new Date(),
+  anchorTimes: ['09:00', '14:00', '20:00']
 };
 
 function plannerReducer(state: PlannerState, action: PlannerAction): PlannerState {
@@ -209,6 +227,36 @@ function plannerReducer(state: PlannerState, action: PlannerAction): PlannerStat
         }
       };
     
+    case 'SET_DAILY_CLICK_GOAL':
+      return {
+        ...state,
+        dailyClickGoal: action.payload
+      };
+    
+    case 'SET_COOL_DOWN':
+      return {
+        ...state,
+        coolDown: action.payload
+      };
+    
+    case 'SET_VIEW_TYPE':
+      return {
+        ...state,
+        viewType: action.payload
+      };
+    
+    case 'SET_CURRENT_PERIOD':
+      return {
+        ...state,
+        currentPeriod: action.payload
+      };
+    
+    case 'SET_ANCHOR_TIMES':
+      return {
+        ...state,
+        anchorTimes: action.payload
+      };
+    
     default:
       return state;
   }
@@ -224,6 +272,13 @@ interface PlannerContextType {
   checkFrequencyViolations: () => string[];
   getOptimalTime: (segmentId: string, campaignType: string, vertical: string) => { hour: number; confidence: number; lift: number };
   autoOptimizeSchedule: () => void;
+  // Planner 3.0 actions
+  setDailyClickGoal: (goal: number) => void;
+  setCoolDown: (days: number) => void;
+  setViewType: (view: 'week' | 'month') => void;
+  setCurrentPeriod: (date: Date) => void;
+  setAnchorTimes: (times: string[]) => void;
+  calculateProgressToGoal: () => { current: number; target: number; percentage: number };
 }
 
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
@@ -342,6 +397,65 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     }, 2000);
   }, [toast]);
 
+  // Planner 3.0 functions
+  const setDailyClickGoal = useCallback((goal: number) => {
+    console.log('[Planner] Setting daily click goal:', goal);
+    dispatch({ type: 'SET_DAILY_CLICK_GOAL', payload: goal });
+    
+    toast({
+      title: "Meta Atualizada",
+      description: `Nova meta diária: ${goal.toLocaleString()} cliques`,
+      duration: 2000
+    });
+  }, [toast]);
+
+  const setCoolDown = useCallback((days: number) => {
+    console.log('[Planner] Setting cool-down period:', days);
+    dispatch({ type: 'SET_COOL_DOWN', payload: days });
+    
+    toast({
+      title: "Cool-down Atualizado",
+      description: `Período mínimo entre campanhas: ${days} dias`,
+      duration: 2000
+    });
+  }, [toast]);
+
+  const setViewType = useCallback((view: 'week' | 'month') => {
+    console.log('[Planner] Changing view type to:', view);
+    dispatch({ type: 'SET_VIEW_TYPE', payload: view });
+  }, []);
+
+  const setCurrentPeriod = useCallback((date: Date) => {
+    console.log('[Planner] Setting current period:', date);
+    dispatch({ type: 'SET_CURRENT_PERIOD', payload: date });
+  }, []);
+
+  const setAnchorTimes = useCallback((times: string[]) => {
+    console.log('[Planner] Setting anchor times:', times);
+    dispatch({ type: 'SET_ANCHOR_TIMES', payload: times });
+    
+    toast({
+      title: "Horários-âncora Atualizados",
+      description: `Novos horários: ${times.join(', ')}`,
+      duration: 2000
+    });
+  }, [toast]);
+
+  const calculateProgressToGoal = useCallback(() => {
+    // Calculate current clicks based on planned campaigns
+    const currentClicks = Object.values(state.plannedCampaigns)
+      .flat()
+      .reduce((sum, campaign) => sum + (campaign.size * campaign.ctr), 0);
+    
+    const percentage = Math.min((currentClicks / state.dailyClickGoal) * 100, 100);
+    
+    return {
+      current: Math.round(currentClicks),
+      target: state.dailyClickGoal,
+      percentage: Math.round(percentage)
+    };
+  }, [state.plannedCampaigns, state.dailyClickGoal]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -369,7 +483,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     calculateTotalRevenue,
     checkFrequencyViolations,
     getOptimalTime,
-    autoOptimizeSchedule
+    autoOptimizeSchedule,
+    // Planner 3.0 functions
+    setDailyClickGoal,
+    setCoolDown,
+    setViewType,
+    setCurrentPeriod,
+    setAnchorTimes,
+    calculateProgressToGoal
   };
 
   return (
