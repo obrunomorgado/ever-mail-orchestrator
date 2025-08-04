@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Mic, MicOff, Brain, Gauge, Target, Zap, Clock, Users } from 'lucide-react';
+import { Calendar, Mic, MicOff, Brain, Gauge, Target, ShieldAlert, Zap, Clock, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
 import { SmartDragDrop } from '@/components/SmartDragDrop';
 import { CalendarView } from '@/components/CalendarView';
+import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
 import { segments } from '@/mocks/demoData';
@@ -118,9 +119,9 @@ function SmartPlannerContent() {
               <Gauge className="h-4 w-4" />
               {!isMobile && 'Analytics'}
             </TabsTrigger>
-            <TabsTrigger value="automation" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              {!isMobile && 'Automação'}
+            <TabsTrigger value="protection" className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4" />
+              {!isMobile && 'Proteções'}
             </TabsTrigger>
           </TabsList>
 
@@ -263,85 +264,8 @@ function SmartPlannerContent() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="automation" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Automation Status */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-primary" />
-                    Automações Ativas
-                  </CardTitle>
-                  <CardDescription>
-                    Proteções e otimizações automáticas em funcionamento
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-success rounded-full"></div>
-                      <span className="text-sm font-medium">Spam Guard</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">Ativo</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-success rounded-full"></div>
-                      <span className="text-sm font-medium">Frequency Shield</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">Ativo</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-success rounded-full"></div>
-                      <span className="text-sm font-medium">Best Time Auto-Optimizer</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">Ativo</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-warning/10 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-warning rounded-full"></div>
-                      <span className="text-sm font-medium">Overlap Prevention</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">Monitorando</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Voice Commands Help */}
-              {isSupported && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mic className="h-5 w-5 text-primary" />
-                      Comandos de Voz
-                    </CardTitle>
-                    <CardDescription>
-                      Comandos disponíveis para controle por voz
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {commands.map((command, index) => (
-                        <div key={index} className="text-xs p-2 bg-muted rounded">
-                          "{command}"
-                        </div>
-                      ))}
-                    </div>
-                    <Button 
-                      className="w-full mt-4" 
-                      variant="outline"
-                      onClick={isListening ? stopListening : startListening}
-                    >
-                      {isListening ? 'Parar Escuta' : 'Ativar Comando de Voz'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+          <TabsContent value="protection" className="space-y-6">
+            <DeliverabilityShield />
           </TabsContent>
         </Tabs>
       </div>
