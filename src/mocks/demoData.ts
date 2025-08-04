@@ -236,6 +236,21 @@ export const backfillData = {
   ]
 };
 
+export const engagementMatrix = [
+  { openRate: 5, clickRate: 5, segment: "VIP Subscribers", count: 2547, color: "#16a34a", erpm: 25.40 },
+  { openRate: 4, clickRate: 4, segment: "Active Readers", count: 1823, color: "#2563eb", erpm: 18.50 },
+  { openRate: 5, clickRate: 3, segment: "Engaged Users", count: 1654, color: "#7c3aed", erpm: 15.20 },
+  { openRate: 3, clickRate: 2, segment: "New Subscribers", count: 1432, color: "#06b6d4", erpm: 8.30 },
+  { openRate: 3, clickRate: 3, segment: "Casual Readers", count: 1198, color: "#f59e0b", erpm: 12.10 },
+  { openRate: 4, clickRate: 2, segment: "Warm Audience", count: 976, color: "#8b5cf6", erpm: 9.80 },
+  { openRate: 2, clickRate: 2, segment: "Declining Interest", count: 823, color: "#f97316", erpm: 6.20 },
+  { openRate: 2, clickRate: 1, segment: "Low Engagement", count: 745, color: "#ef4444", erpm: 3.50 },
+  { openRate: 1, clickRate: 1, segment: "Inactive", count: 567, color: "#dc2626", erpm: 1.20 },
+  { openRate: 1, clickRate: 2, segment: "Dormant", count: 434, color: "#6b7280", erpm: 2.10 },
+  { openRate: 1, clickRate: 1, segment: "Lost Subscribers", count: 289, color: "#374151", erpm: 0.50 }
+];
+
+// Legacy RFM data for backwards compatibility
 export const rfmMatrix = [
   { recency: 5, frequency: 5, monetary: 5, segment: "Champions", count: 12500, color: "#10B981" },
   { recency: 5, frequency: 4, monetary: 5, segment: "Champions", count: 8900, color: "#10B981" },

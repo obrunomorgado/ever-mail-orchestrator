@@ -2,26 +2,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { rfmMatrix, segments } from "@/mocks/demoData";
-import { BarChart3, Users, TrendingUp, Target } from "lucide-react";
+import { engagementMatrix, segments } from "@/mocks/demoData";
+import { BarChart3, Users, TrendingUp, Target, Mail, MousePointer, Eye, DollarSign } from "lucide-react";
 
-export function RFMAnalysisPage() {
-  const totalCustomers = rfmMatrix.reduce((sum, segment) => sum + segment.count, 0);
+export function EngagementAnalysisPage() {
+  const totalSubscribers = engagementMatrix.reduce((sum, segment) => sum + segment.count, 0);
 
-  const getSegmentPercentage = (count: number) => (count / totalCustomers) * 100;
+  const getSegmentPercentage = (count: number) => (count / totalSubscribers) * 100;
 
-  const segmentStats = rfmMatrix.reduce((acc, segment) => {
+  const segmentStats = engagementMatrix.reduce((acc, segment) => {
     if (!acc[segment.segment]) {
-      acc[segment.segment] = { count: 0, color: segment.color };
+      acc[segment.segment] = { count: 0, color: segment.color, erpm: segment.erpm };
     }
     acc[segment.segment].count += segment.count;
     return acc;
-  }, {} as Record<string, { count: number; color: string }>);
+  }, {} as Record<string, { count: number; color: string; erpm: number }>);
 
   const topSegments = Object.entries(segmentStats)
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
+
+  const overallErpm = (segmentStats["VIP Subscribers"]?.erpm || 0) * 0.4 + 
+                     (segmentStats["Active Readers"]?.erpm || 0) * 0.3 + 
+                     (segmentStats["Casual Readers"]?.erpm || 0) * 0.2 + 
+                     (segmentStats["Inactive"]?.erpm || 0) * 0.1;
 
   return (
     <div className="space-y-6">
@@ -29,9 +34,9 @@ export function RFMAnalysisPage() {
         <div className="flex items-center gap-3">
           <BarChart3 className="w-8 h-8" />
           <div>
-            <h1 className="text-3xl font-bold">Análise RFM</h1>
+            <h1 className="text-3xl font-bold">Análise de Engajamento</h1>
             <p className="text-muted-foreground">
-              Segmentação por Recência, Frequência e Valor Monetário
+              Performance da audiência por nível de interação e receita
             </p>
           </div>
         </div>
@@ -46,9 +51,9 @@ export function RFMAnalysisPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-muted-foreground" />
-              <div className="text-sm font-medium">Total de Clientes</div>
+              <div className="text-sm font-medium">Total Subscribers</div>
             </div>
-            <div className="text-2xl font-bold">{totalCustomers.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{totalSubscribers.toLocaleString()}</div>
           </CardContent>
         </Card>
         
@@ -56,13 +61,13 @@ export function RFMAnalysisPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              <div className="text-sm font-medium">Champions</div>
+              <div className="text-sm font-medium">VIP Subscribers</div>
             </div>
             <div className="text-2xl font-bold">
-              {segmentStats["Champions"]?.count.toLocaleString() || 0}
+              {segmentStats["VIP Subscribers"]?.count.toLocaleString() || 0}
             </div>
             <div className="text-xs text-muted-foreground">
-              {getSegmentPercentage(segmentStats["Champions"]?.count || 0).toFixed(1)}% do total
+              {getSegmentPercentage(segmentStats["VIP Subscribers"]?.count || 0).toFixed(1)}% do total
             </div>
           </CardContent>
         </Card>
@@ -70,14 +75,14 @@ export function RFMAnalysisPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-500" />
-              <div className="text-sm font-medium">Loyal Customers</div>
+              <Eye className="w-4 h-4 text-blue-500" />
+              <div className="text-sm font-medium">Active Readers</div>
             </div>
             <div className="text-2xl font-bold">
-              {segmentStats["Loyal Customers"]?.count.toLocaleString() || 0}
+              {segmentStats["Active Readers"]?.count.toLocaleString() || 0}
             </div>
             <div className="text-xs text-muted-foreground">
-              {getSegmentPercentage(segmentStats["Loyal Customers"]?.count || 0).toFixed(1)}% do total
+              {getSegmentPercentage(segmentStats["Active Readers"]?.count || 0).toFixed(1)}% do total
             </div>
           </CardContent>
         </Card>
@@ -85,14 +90,14 @@ export function RFMAnalysisPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-red-500" />
-              <div className="text-sm font-medium">At Risk</div>
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <div className="text-sm font-medium">eRPM Médio</div>
             </div>
             <div className="text-2xl font-bold">
-              {segmentStats["At Risk"]?.count.toLocaleString() || 0}
+              R$ {overallErpm.toFixed(2)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {getSegmentPercentage(segmentStats["At Risk"]?.count || 0).toFixed(1)}% do total
+              Receita por mil subscribers
             </div>
           </CardContent>
         </Card>
@@ -101,25 +106,25 @@ export function RFMAnalysisPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Matriz RFM</CardTitle>
-            <CardDescription>Distribuição visual dos clientes por segmento</CardDescription>
+            <CardTitle>Matriz de Engajamento</CardTitle>
+            <CardDescription>Distribuição por taxa de abertura vs. taxa de clique</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-5 gap-1">
-              {[5, 4, 3, 2, 1].map(frequency => (
-                [5, 4, 3, 2, 1].map(recency => {
-                  const cell = rfmMatrix.find(item => 
-                    item.frequency === frequency && item.recency === recency
+              {[5, 4, 3, 2, 1].map(openRate => (
+                [5, 4, 3, 2, 1].map(clickRate => {
+                  const cell = engagementMatrix.find(item => 
+                    item.openRate === openRate && item.clickRate === clickRate
                   );
                   return (
                     <div
-                      key={`${frequency}-${recency}`}
+                      key={`${openRate}-${clickRate}`}
                       className="aspect-square border rounded flex items-center justify-center text-xs p-1"
                       style={{ 
                         backgroundColor: cell ? `${cell.color}20` : '#f3f4f6',
                         borderColor: cell?.color || '#e5e7eb'
                       }}
-                      title={cell ? `${cell.segment}: ${cell.count.toLocaleString()}` : 'Sem dados'}
+                      title={cell ? `${cell.segment}: ${cell.count.toLocaleString()} (eRPM: R$ ${cell.erpm})` : 'Sem dados'}
                     >
                       {cell ? Math.round(getSegmentPercentage(cell.count)) + '%' : '-'}
                     </div>
@@ -129,10 +134,10 @@ export function RFMAnalysisPage() {
             </div>
             <div className="mt-4 text-xs text-muted-foreground">
               <div className="flex justify-between">
-                <span>Frequência: 1 (baixa) → 5 (alta)</span>
+                <span>Taxa de Clique: 1 (baixa) → 5 (alta)</span>
               </div>
               <div className="flex justify-between mt-1">
-                <span>Recência: 1 (antiga) → 5 (recente)</span>
+                <span>Taxa de Abertura: 1 (baixa) → 5 (alta)</span>
               </div>
             </div>
           </CardContent>
@@ -140,8 +145,8 @@ export function RFMAnalysisPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Segmentos</CardTitle>
-            <CardDescription>Maiores grupos de clientes</CardDescription>
+            <CardTitle>Top Segmentos de Engajamento</CardTitle>
+            <CardDescription>Grupos com melhor performance</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {topSegments.map((segment, index) => (
@@ -157,7 +162,7 @@ export function RFMAnalysisPage() {
                   <div className="text-right">
                     <div className="font-medium">{segment.count.toLocaleString()}</div>
                     <div className="text-xs text-muted-foreground">
-                      {getSegmentPercentage(segment.count).toFixed(1)}%
+                      eRPM: R$ {segment.erpm}
                     </div>
                   </div>
                 </div>
@@ -173,79 +178,79 @@ export function RFMAnalysisPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Estratégias Recomendadas por Segmento</CardTitle>
+          <CardTitle>Estratégias por Segmento de Engajamento</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="p-4 border rounded">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded bg-green-500" />
-                <Badge variant="default">Champions</Badge>
+                <Badge variant="default">VIP Subscribers</Badge>
               </div>
               <div className="text-sm space-y-1">
-                <p><strong>Estratégia:</strong> Manter satisfação</p>
-                <p><strong>Ações:</strong> Programa VIP, early access, upsell</p>
-                <p><strong>Frequência:</strong> Semanal</p>
+                <p><strong>Estratégia:</strong> Conteúdo premium exclusivo</p>
+                <p><strong>Ações:</strong> Early access, análises exclusivas, webinars VIP</p>
+                <p><strong>Frequência:</strong> Diária</p>
               </div>
             </div>
 
             <div className="p-4 border rounded">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded bg-blue-500" />
-                <Badge variant="default">Loyal Customers</Badge>
+                <Badge variant="default">Active Readers</Badge>
               </div>
               <div className="text-sm space-y-1">
-                <p><strong>Estratégia:</strong> Elevar para Champions</p>
-                <p><strong>Ações:</strong> Cross-sell, produtos premium</p>
-                <p><strong>Frequência:</strong> Quinzenal</p>
+                <p><strong>Estratégia:</strong> Elevar para VIP</p>
+                <p><strong>Ações:</strong> Conteúdo de valor, produtos premium</p>
+                <p><strong>Frequência:</strong> 2-3x por semana</p>
               </div>
             </div>
 
             <div className="p-4 border rounded">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded bg-cyan-500" />
-                <Badge variant="default">New Customers</Badge>
+                <Badge variant="default">New Subscribers</Badge>
               </div>
               <div className="text-sm space-y-1">
                 <p><strong>Estratégia:</strong> Onboarding eficaz</p>
-                <p><strong>Ações:</strong> Tutorial, suporte, segunda compra</p>
-                <p><strong>Frequência:</strong> Diária (primeiro mês)</p>
+                <p><strong>Ações:</strong> Série de boas-vindas, conteúdo introdutório</p>
+                <p><strong>Frequência:</strong> Diária (primeira semana)</p>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded bg-yellow-500" />
+                <Badge variant="secondary">Casual Readers</Badge>
+              </div>
+              <div className="text-sm space-y-1">
+                <p><strong>Estratégia:</strong> Aumentar engajamento</p>
+                <p><strong>Ações:</strong> Conteúdo personalizado, horários otimizados</p>
+                <p><strong>Frequência:</strong> 2x por semana</p>
               </div>
             </div>
 
             <div className="p-4 border rounded">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded bg-red-500" />
-                <Badge variant="destructive">At Risk</Badge>
+                <Badge variant="destructive">Inactive</Badge>
               </div>
               <div className="text-sm space-y-1">
-                <p><strong>Estratégia:</strong> Reativação urgente</p>
-                <p><strong>Ações:</strong> Desconto, pesquisa, suporte</p>
-                <p><strong>Frequência:</strong> Semanal (personalizada)</p>
+                <p><strong>Estratégia:</strong> Reativação</p>
+                <p><strong>Ações:</strong> Conteúdo especial, pesquisa de interesse</p>
+                <p><strong>Frequência:</strong> Semanal (campanha específica)</p>
               </div>
             </div>
 
             <div className="p-4 border rounded">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded bg-gray-700" />
-                <Badge variant="secondary">Lost</Badge>
+                <Badge variant="secondary">Lost Subscribers</Badge>
               </div>
               <div className="text-sm space-y-1">
-                <p><strong>Estratégia:</strong> Win-back campaign</p>
-                <p><strong>Ações:</strong> Oferta especial, novos produtos</p>
-                <p><strong>Frequência:</strong> Mensal (limitada)</p>
-              </div>
-            </div>
-
-            <div className="p-4 border rounded">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded bg-purple-500" />
-                <Badge variant="secondary">Potential Loyalists</Badge>
-              </div>
-              <div className="text-sm space-y-1">
-                <p><strong>Estratégia:</strong> Aumentar frequência</p>
-                <p><strong>Ações:</strong> Programa de fidelidade, incentivos</p>
-                <p><strong>Frequência:</strong> Bi-semanal</p>
+                <p><strong>Estratégia:</strong> Win-back ou limpeza</p>
+                <p><strong>Ações:</strong> Última tentativa, remoção da lista</p>
+                <p><strong>Frequência:</strong> Quinzenal (limitada)</p>
               </div>
             </div>
           </div>

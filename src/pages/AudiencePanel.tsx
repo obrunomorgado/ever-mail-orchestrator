@@ -9,7 +9,7 @@ import { GuardrailsBanner } from "@/components/GuardrailsBanner";
 import { BestTimeWidget } from "@/components/BestTimeWidget";
 import { BackupToggle } from "@/components/BackupToggle";
 import { SmartTagBuilder } from "@/components/SmartTagBuilder";
-import { RFMMatrixWidget } from "@/components/RFMMatrixWidget";
+import { EngagementMatrixWidget } from "@/components/EngagementMatrixWidget";
 import { SegmentBuilder } from "@/components/SegmentBuilder";
 import { segments, tags, lists, guardrailsData } from "@/mocks/demoData";
 import { Users, Tag, List, Calendar, TrendingUp, BarChart } from "lucide-react";
@@ -108,7 +108,7 @@ export function AudiencePanel() {
                     {tipo === "segmentos" && (
                       <>
                         <BestTimeWidget audienceId={item.id} />
-                        <RFMMatrixWidget segmentId={item.id} />
+                        <EngagementMatrixWidget segmentId={item.id} />
                       </>
                     )}
                     <BackupToggle />

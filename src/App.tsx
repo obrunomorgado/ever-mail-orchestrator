@@ -20,7 +20,7 @@ import { ListCleaningPage } from "./pages/ListCleaningPage";
 import { MacrosPage } from "./pages/MacrosPage";
 import { RecipesPage } from "./pages/RecipesPage";
 import { BackfillPage } from "./pages/BackfillPage";
-import { RFMAnalysisPage } from "./pages/RFMAnalysisPage";
+import { EngagementAnalysisPage } from "./pages/EngagementAnalysisPage";
 import Audiences from "./pages/Audiences";
 import Automations from "./pages/Automations";
 import AutomationsFlow from "./pages/AutomationsFlow";
@@ -59,7 +59,7 @@ const App = () => (
                   <Route path="/macros" element={<MacrosPage />} />
                   <Route path="/receitas" element={<RecipesPage />} />
                   <Route path="/backfill" element={<BackfillPage />} />
-                  <Route path="/rfm-analysis" element={<RFMAnalysisPage />} />
+                  <Route path="/engagement-analysis" element={<EngagementAnalysisPage />} />
                   <Route path="/audiences" element={<Audiences />} />
                   <Route path="/automations" element={<Automations />} />
                   <Route path="/automations-flow" element={<AutomationsFlow />} />

@@ -50,7 +50,7 @@ const toolsItems = [
   { title: "Macros", url: "/macros", icon: FileText },
   { title: "Receitas", url: "/receitas", icon: BookOpen },
   { title: "Backfill", url: "/backfill", icon: Database },
-  { title: "Análise RFM", url: "/rfm-analysis", icon: BarChart3 },
+  { title: "Análise de Engajamento", url: "/engagement-analysis", icon: BarChart3 },
 ];
 
 const reportItems = [
