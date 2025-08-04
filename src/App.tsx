@@ -12,7 +12,7 @@ import { DataProvider } from "@/contexts/DataContext";
 import { AppHeader } from "@/components/AppHeader";
 import Dashboard from "./pages/Dashboard";
 import Central from "./pages/Central";
-import { PlannerPage } from "./pages/PlannerPage";
+import { SmartPlannerPage } from "./pages/SmartPlannerPage";
 import { AudiencePanel } from "./pages/AudiencePanel";
 import { HeatMapPanel } from "./pages/HeatMapPanel";
 import { WarmupWizard } from "./pages/WarmupWizard";
@@ -52,7 +52,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/central" element={<Central />} />
-                  <Route path="/planner-new" element={<PlannerPage />} />
+                  <Route path="/planner-new" element={<SmartPlannerPage />} />
                   <Route path="/audiencias/:tipo" element={<AudiencePanel />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />
                   <Route path="/warmup" element={<WarmupWizard />} />
