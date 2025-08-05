@@ -601,7 +601,6 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       duration: 2000
     });
   }, [toast]);
-
   const value: PlannerContextType = {
     state,
     moveSegment,
