@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { Calendar, Clock, Users, DollarSign, Target, Brain, Settings, Save, Download, Play, Search, Filter, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, Shield, TrendingUp, Eye } from 'lucide-react';
+import { Calendar, Clock, Users, DollarSign, Target, Brain, Settings, Save, Download, Play, Search, Filter, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, Shield, TrendingUp, Eye, Timer, Bot, Sparkles, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,9 @@ import { segments, templates } from '@/mocks/demoData';
 import { RevenueDashboard } from '@/components/RevenueDashboard';
 import { GlobalSchedulerSettings } from '@/components/GlobalSchedulerSettings';
 import { DeliverabilityShield } from '@/components/DeliverabilityShield';
+import { usePlannerAutomation } from '@/hooks/usePlannerAutomation';
+import { usePlannerDragDropV2 } from '@/hooks/usePlannerDragDropV2';
+import { usePlannerProductivity } from '@/hooks/usePlannerProductivity';
 
 console.log('[PlanoTaticoBoard] Component loading');
 
@@ -153,6 +156,11 @@ export function PlanoTaticoBoard() {
   const { state, createSlot, removeSlot, cloneSlot, calculateTotalRevenue, checkFrequencyViolations, calculateProgressToGoal } = usePlanner();
   const { toast } = useToast();
   
+  // Automation hooks
+  const { autoFillBestSlots, smartWeeklyPlan, resolveAllConflicts, findBestTemplate, getAutomationStats } = usePlannerAutomation();
+  const { draggedItem, handleDragStart, handleDragEnd, getSlotDropTargetStyle } = usePlannerDragDropV2();
+  const { metrics: productivityMetrics, trackAction, getCurrentSessionTime, getProductivityInsights, getEfficiencyBadge } = usePlannerProductivity();
+  
   // Estado local
   const [maxEmails, setMaxEmails] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,13 +257,16 @@ export function PlanoTaticoBoard() {
     };
   }, [checkFrequencyViolations]);
   
-  // Drag and Drop
+  // Enhanced Drag and Drop with auto-template matching
   const onDragEnd = useCallback((result: DropResult) => {
     console.log('[PlanoTaticoBoard] Drag ended:', result);
     
     if (!result.destination) return;
     
     const { source, destination, draggableId } = result;
+    
+    // Track manual action for productivity metrics
+    trackAction('manual');
     
     // Parse destination (format: "slot-date-time")
     if (destination.droppableId.startsWith('slot-')) {
@@ -270,18 +281,50 @@ export function PlanoTaticoBoard() {
           if (existingCampaigns.length > 0) {
             toast({
               title: "Slot já ocupado",
-              description: "Este horário já possui uma campanha agendada.",
+              description: "Use automação para redistribuir ou escolha outro slot",
               variant: "destructive",
               duration: 3000
             });
             return;
           }
           
-          createSlot(date, timeSlot, segment.id);
+          // Auto-find best template for this segment
+          const bestTemplate = findBestTemplate(segment);
+          createSlot(date, timeSlot, segment.id, bestTemplate.id);
+          
+          toast({
+            title: "Campanha criada",
+            description: `${segment.name} + ${bestTemplate.name} (Score: ${Math.round(bestTemplate.compatibilityScore)})`,
+            duration: 3000
+          });
+        }
+      } else if (source.droppableId === 'templates') {
+        // Handle template drag to existing slots
+        const template = filteredTemplates.find(t => t.id === draggableId);
+        if (template && date && timeSlot) {
+          const existingCampaigns = state.plannedCampaigns[date]?.[timeSlot] || [];
+          if (existingCampaigns.length === 0) {
+            toast({
+              title: "Slot vazio",
+              description: "Arraste primeiro uma audiência para este slot",
+              variant: "destructive",
+              duration: 2000
+            });
+            return;
+          }
+          
+          toast({
+            title: "Template aplicado",
+            description: `${template.name} aplicado ao slot ${timeSlot}`,
+            duration: 2000
+          });
         }
       }
     }
-  }, [filteredSegments, state.plannedCampaigns, createSlot, toast]);
+    
+    // Use enhanced drag handler
+    handleDragEnd(result);
+  }, [filteredSegments, filteredTemplates, state.plannedCampaigns, createSlot, toast, trackAction, findBestTemplate, handleDragEnd]);
   
   // Ações
   const handleLaunchDay = useCallback(() => {
@@ -461,19 +504,20 @@ export function PlanoTaticoBoard() {
                   <Droppable droppableId="segments">
                     {(provided) => (
                       <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
-                        {filteredSegments.map((segment, index) => (
-                          <Draggable key={segment.id} draggableId={segment.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                              >
-                                <AudienceCard segment={segment} isDragging={snapshot.isDragging} />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
+                         {filteredSegments.map((segment, index) => (
+                           <Draggable key={segment.id} draggableId={segment.id} index={index}>
+                             {(provided, snapshot) => (
+                               <div
+                                 ref={provided.innerRef}
+                                 {...provided.draggableProps}
+                                 {...provided.dragHandleProps}
+                                 onDragStart={() => handleDragStart({ draggableId: segment.id, source: { droppableId: 'segments', index } })}
+                               >
+                                 <AudienceCard segment={segment} isDragging={snapshot.isDragging} />
+                               </div>
+                             )}
+                           </Draggable>
+                         ))}
                         {provided.placeholder}
                       </div>
                     )}
@@ -499,15 +543,31 @@ export function PlanoTaticoBoard() {
                     </SelectContent>
                   </Select>
                   
-                  <div className="space-y-3">
-                    {filteredTemplates.map((template) => (
-                      <TemplateCard 
-                        key={template.id} 
-                        template={template} 
-                        score={template.score}
-                      />
-                    ))}
-                  </div>
+                   <Droppable droppableId="templates">
+                     {(provided) => (
+                       <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                         {filteredTemplates.map((template, index) => (
+                           <Draggable key={template.id} draggableId={template.id} index={index}>
+                             {(provided, snapshot) => (
+                               <div
+                                 ref={provided.innerRef}
+                                 {...provided.draggableProps}
+                                 {...provided.dragHandleProps}
+                                 onDragStart={() => handleDragStart({ draggableId: template.id, source: { droppableId: 'templates', index } })}
+                               >
+                                 <TemplateCard 
+                                   template={template} 
+                                   score={template.score}
+                                   isDragging={snapshot.isDragging}
+                                 />
+                               </div>
+                             )}
+                           </Draggable>
+                         ))}
+                         {provided.placeholder}
+                       </div>
+                     )}
+                   </Droppable>
                 </TabsContent>
 
                 {/* Aba Analytics */}
@@ -720,28 +780,135 @@ export function PlanoTaticoBoard() {
 
           {/* Grade Principal */}
           <div className="flex-1 p-6">
-            {/* Ações de Topo */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Button onClick={handleCheckDuplicates} variant="outline" size="sm">
-                  <Search className="h-4 w-4 mr-2" />
-                  Checar Duplicados
-                </Button>
-                
-                {violations.hasAny && (
-                  <Button onClick={handleResolveDuplicates} variant="destructive" size="sm">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Resolver ({violations.frequency.length + violations.cooldown.length + violations.overlap.length})
+            {/* Painel de Automação Inteligente */}
+            <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/5 to-background">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold">Automação Inteligente</h3>
+                    </div>
+                    <Badge variant="outline" className="gap-1">
+                      <Timer className="h-3 w-3" />
+                      {getCurrentSessionTime()}s
+                    </Badge>
+                    <Badge {...getEfficiencyBadge()} className="text-white">
+                      {getEfficiencyBadge().label}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Activity className="h-3 w-3" />
+                    {productivityMetrics.automationSavings.toFixed(1)}min economizados
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Button 
+                    onClick={async () => {
+                      trackAction('automation');
+                      const result = await autoFillBestSlots();
+                      toast({
+                        title: "Auto-Fill Concluído",
+                        description: `${result.filledCount} slots preenchidos em ${result.duration}ms`,
+                        duration: 3000
+                      });
+                    }}
+                    variant="outline" 
+                    className="gap-2 h-auto p-3 flex-col"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <div className="text-center">
+                      <div className="font-medium text-xs">Auto-Fill Best Slots</div>
+                      <div className="text-[10px] text-muted-foreground">Preencher por RPM</div>
+                    </div>
                   </Button>
+
+                  <Button 
+                    onClick={async () => {
+                      trackAction('automation');
+                      const result = await smartWeeklyPlan();
+                      toast({
+                        title: "Plano Semanal Criado",
+                        description: `${result.segmentsScheduled} segmentos distribuídos`,
+                        duration: 3000
+                      });
+                    }}
+                    variant="outline" 
+                    className="gap-2 h-auto p-3 flex-col"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <div className="text-center">
+                      <div className="font-medium text-xs">Smart Weekly Plan</div>
+                      <div className="text-[10px] text-muted-foreground">Otimizar semana</div>
+                    </div>
+                  </Button>
+
+                  <Button 
+                    onClick={async () => {
+                      trackAction('automation');
+                      const result = await resolveAllConflicts();
+                      toast({
+                        title: "Conflitos Resolvidos",
+                        description: `${result.resolvedCount} conflitos corrigidos`,
+                        duration: 3000
+                      });
+                    }}
+                    variant={violations.hasAny ? "destructive" : "outline"}
+                    className="gap-2 h-auto p-3 flex-col"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <div className="text-center">
+                      <div className="font-medium text-xs">Resolver Tudo</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {violations.hasAny ? `${violations.frequency.length + violations.cooldown.length + violations.overlap.length} conflitos` : "Sem conflitos"}
+                      </div>
+                    </div>
+                  </Button>
+
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={handleCheckDuplicates} variant="outline" size="sm" className="gap-2">
+                      <Search className="h-3 w-3" />
+                      <span className="text-xs">Checar Overlap</span>
+                    </Button>
+                    <Button onClick={handleSaveDraft} variant="outline" size="sm" className="gap-2">
+                      <Save className="h-3 w-3" />
+                      <span className="text-xs">Salvar</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Insights de Produtividade */}
+                {getProductivityInsights().length > 0 && (
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="text-xs font-medium mb-2">💡 Insights de Produtividade:</div>
+                    <div className="space-y-1">
+                      {getProductivityInsights().slice(0, 2).map((insight, i) => (
+                        <div key={i} className="text-xs text-muted-foreground">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                            insight.type === 'success' ? 'bg-green-500' :
+                            insight.type === 'warning' ? 'bg-yellow-500' :
+                            insight.type === 'tip' ? 'bg-blue-500' : 'bg-purple-500'
+                          }`} />
+                          {insight.message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Ações Secundárias */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                Sessão ativa: {getCurrentSessionTime()}s | 
+                Automação: {productivityMetrics.weeklyEfficiency.toFixed(0)}%
               </div>
               
               <div className="flex items-center gap-2">
-                <Button onClick={handleSaveDraft} variant="outline" size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Rascunho
-                </Button>
-                
                 <Button onClick={handleExportCSV} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar CSV
@@ -794,18 +961,19 @@ export function PlanoTaticoBoard() {
                       return (
                         <Droppable key={slotId} droppableId={slotId}>
                           {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={cn(
-                                "min-h-24 p-2 rounded-lg border-2 border-dashed transition-all duration-200",
-                                snapshot.isDraggingOver 
-                                  ? "border-primary bg-primary/5" 
-                                  : campaigns.length > 0 
-                                    ? "border-border bg-card" 
-                                    : "border-muted-foreground/20 hover:border-primary/50"
-                              )}
-                            >
+                           <div
+                               ref={provided.innerRef}
+                               {...provided.droppableProps}
+                               className={cn(
+                                 "min-h-24 p-2 rounded-lg border-2 border-dashed transition-all duration-200",
+                                 snapshot.isDraggingOver 
+                                   ? "border-primary bg-primary/5" 
+                                   : campaigns.length > 0 
+                                     ? "border-border bg-card" 
+                                     : "border-muted-foreground/20 hover:border-primary/50",
+                                 getSlotDropTargetStyle(date, timeSlot)
+                               )}
+                             >
                               <div className="space-y-2">
                                 {campaigns.map((campaign) => (
                                   <SlotCard
