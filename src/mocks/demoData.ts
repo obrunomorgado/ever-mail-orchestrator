@@ -413,6 +413,93 @@ export const warmupSchedule = [
   { day: 30, volume: 5000, reputation: 0.95, notes: "Warm-up concluído" }
 ];
 
+export const templates = [
+  {
+    id: "tpl_welcome_001",
+    name: "Boas-vindas Premium",
+    subject: "Bem-vindo(a) à nossa comunidade VIP! 🎉",
+    category: "onboarding",
+    type: "welcome",
+    openRate: 45.2,
+    clickRate: 12.8,
+    spamScore: 0.1,
+    isFavorite: true,
+    isRecent: true,
+    lastUsed: "2024-01-16",
+    content: "Template de boas-vindas com design premium"
+  },
+  {
+    id: "tpl_promo_001",
+    name: "Oferta Especial Cartão",
+    subject: "Oferta Imperdível: Cartão sem anuidade! 💳",
+    category: "promotional",
+    type: "offer",
+    openRate: 38.7,
+    clickRate: 15.3,
+    spamScore: 0.2,
+    isFavorite: true,
+    isRecent: false,
+    lastUsed: "2024-01-15",
+    content: "Template promocional para cartão de crédito"
+  },
+  {
+    id: "tpl_newsletter_001",
+    name: "Newsletter Semanal",
+    subject: "Suas novidades financeiras da semana 📊",
+    category: "newsletter",
+    type: "content",
+    openRate: 42.1,
+    clickRate: 8.5,
+    spamScore: 0.05,
+    isFavorite: false,
+    isRecent: true,
+    lastUsed: "2024-01-16",
+    content: "Template de newsletter com conteúdo educativo"
+  },
+  {
+    id: "tpl_reactivation_001",
+    name: "Reativação 30 dias",
+    subject: "Sentimos sua falta! Volta aqui? 🤗",
+    category: "retention",
+    type: "reactivation",
+    openRate: 28.4,
+    clickRate: 6.2,
+    spamScore: 0.15,
+    isFavorite: false,
+    isRecent: false,
+    lastUsed: "2024-01-14",
+    content: "Template para reativação de usuários inativos"
+  },
+  {
+    id: "tpl_urgent_001",
+    name: "Urgência - Últimas Horas",
+    subject: "ÚLTIMAS HORAS: Não perca esta oportunidade! ⏰",
+    category: "urgency",
+    type: "closing",
+    openRate: 52.8,
+    clickRate: 18.9,
+    spamScore: 0.35,
+    isFavorite: false,
+    isRecent: false,
+    lastUsed: "2024-01-13",
+    content: "Template de urgência para fechamento de ofertas"
+  },
+  {
+    id: "tpl_education_001",
+    name: "Dicas Financeiras",
+    subject: "5 dicas para organizar suas finanças 💰",
+    category: "educational",
+    type: "content",
+    openRate: 41.3,
+    clickRate: 11.7,
+    spamScore: 0.08,
+    isFavorite: true,
+    isRecent: false,
+    lastUsed: "2024-01-12",
+    content: "Template educativo sobre finanças pessoais"
+  }
+];
+
 export const guardrailsData = {
   spamRate: 0.04,
   bounceRate: 0.02,
