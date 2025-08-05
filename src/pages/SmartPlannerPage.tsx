@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Mic, MicOff, Brain, Gauge, Target, ShieldAlert, Zap, Clock, Users } from 'lucide-react';
+import { Calendar, Mic, MicOff, Brain, Gauge, Target, ShieldAlert, Zap, Clock, Users, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
 import { PlannerGridView } from '@/components/PlannerGridView';
+import { RevenueOptimizedPlanner } from '@/components/RevenueOptimizedPlanner';
+import { RevenueDashboard } from '@/components/RevenueDashboard';
 import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
@@ -28,7 +30,7 @@ function SmartPlannerContent() {
   const { isListening, isSupported, startListening, stopListening, commands } = useVoiceCommands();
   const { defaults, isLoading: defaultsLoading, generateInitialPlan } = usePlannerDefaults();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState('planner');
+  const [activeTab, setActiveTab] = useState('optimizer');
   
   console.log('[Planner] SmartPlannerContent rendering with defaults:', defaults);
   
@@ -68,9 +70,9 @@ function SmartPlannerContent() {
                   <Brain className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold">Central de Planejamento Inteligente</h1>
+                  <h1 className="text-2xl lg:text-3xl font-bold">Revenue-First Smart Planner</h1>
                   <p className="text-muted-foreground text-sm lg:text-base">
-                    Otimização em tempo real • Mobile-first • Automações preventivas
+                    IA otimiza receita • Recomendações inteligentes • Prevenção de conflitos
                   </p>
                 </div>
               </div>
@@ -105,10 +107,14 @@ function SmartPlannerContent() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="planner" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              {!isMobile && 'Planner'}
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="optimizer" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              {!isMobile && 'Otimizador'}
+            </TabsTrigger>
+            <TabsTrigger value="revenue" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              {!isMobile && 'Revenue'}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <Gauge className="h-4 w-4" />
@@ -120,16 +126,12 @@ function SmartPlannerContent() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="planner" className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              {/* Main Planner Grid Area */}
-              <PlannerGridView segments={segments} timeSlots={timeSlots} />
-              
-              {/* Impact Panel Below */}
-              <div className="max-w-4xl mx-auto">
-                <RealTimeImpactPanel />
-              </div>
-            </div>
+          <TabsContent value="optimizer" className="space-y-6">
+            <RevenueOptimizedPlanner segments={segments} timeSlots={timeSlots} />
+          </TabsContent>
+
+          <TabsContent value="revenue" className="space-y-6">
+            <RevenueDashboard segments={segments} />
           </TabsContent>
 
 
