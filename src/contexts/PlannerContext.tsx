@@ -65,6 +65,7 @@ interface PlannerState {
   viewType: 'week' | 'month';
   currentPeriod: Date;
   anchorTimes: string[];
+  maxPlanningWindow: number;
 }
 
 type PlannerAction =
@@ -84,7 +85,8 @@ type PlannerAction =
   | { type: 'SET_COOL_DOWN'; payload: number }
   | { type: 'SET_VIEW_TYPE'; payload: 'week' | 'month' }
   | { type: 'SET_CURRENT_PERIOD'; payload: Date }
-  | { type: 'SET_ANCHOR_TIMES'; payload: string[] };
+  | { type: 'SET_ANCHOR_TIMES'; payload: string[] }
+  | { type: 'SET_MAX_PLANNING_WINDOW'; payload: number };
 
 const initialState: PlannerState = {
   availableSegments: [],
@@ -107,7 +109,8 @@ const initialState: PlannerState = {
   coolDown: 3,
   viewType: 'week',
   currentPeriod: new Date(),
-  anchorTimes: ['09:00', '14:00', '20:00']
+  anchorTimes: ['09:00', '14:00', '20:00'],
+  maxPlanningWindow: 30
 };
 
 function plannerReducer(state: PlannerState, action: PlannerAction): PlannerState {
@@ -321,6 +324,12 @@ function plannerReducer(state: PlannerState, action: PlannerAction): PlannerStat
         anchorTimes: action.payload
       };
     
+    case 'SET_MAX_PLANNING_WINDOW':
+      return {
+        ...state,
+        maxPlanningWindow: action.payload
+      };
+    
     default:
       return state;
   }
@@ -346,6 +355,8 @@ interface PlannerContextType {
   setViewType: (view: 'week' | 'month') => void;
   setCurrentPeriod: (date: Date) => void;
   setAnchorTimes: (times: string[]) => void;
+  setFrequencyCap: (cap: number) => void;
+  setMaxPlanningWindow: (window: number) => void;
   calculateProgressToGoal: () => { current: number; target: number; percentage: number };
 }
 
@@ -489,6 +500,28 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [toast]);
 
+  const setFrequencyCap = useCallback((cap: number) => {
+    console.log('[Planner] Setting frequency cap:', cap);
+    dispatch({ type: 'SET_FREQUENCY_CAP', payload: cap });
+    
+    toast({
+      title: "Frequency Cap Atualizado",
+      description: `Novo limite: ${cap} email(s) por destinatário/24h`,
+      duration: 2000
+    });
+  }, [toast]);
+
+  const setMaxPlanningWindow = useCallback((window: number) => {
+    console.log('[Planner] Setting max planning window:', window);
+    dispatch({ type: 'SET_MAX_PLANNING_WINDOW', payload: window });
+    
+    toast({
+      title: "Janela de Planejamento Atualizada",
+      description: `Máximo: ${window} dias no futuro`,
+      duration: 2000
+    });
+  }, [toast]);
+
   const calculateProgressToGoal = useCallback(() => {
     // Calculate current clicks based on planned campaigns
     const currentClicks = Object.values(state.plannedCampaigns)
@@ -587,6 +620,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     setViewType,
     setCurrentPeriod,
     setAnchorTimes,
+    setFrequencyCap,
+    setMaxPlanningWindow,
     calculateProgressToGoal
   };
 
