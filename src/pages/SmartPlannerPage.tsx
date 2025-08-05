@@ -9,7 +9,7 @@ import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
 import { SmartDragDrop } from '@/components/SmartDragDrop';
 import { CalendarView } from '@/components/CalendarView';
-import { CalendarGridView } from '@/components/CalendarGridView';
+import { PlannerGridView } from '@/components/PlannerGridView';
 import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
@@ -107,14 +107,10 @@ function SmartPlannerContent() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="planner" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              {!isMobile && 'Grid'}
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              {!isMobile && 'Calendário'}
+              {!isMobile && 'Planner'}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <Gauge className="h-4 w-4" />
@@ -128,8 +124,8 @@ function SmartPlannerContent() {
 
           <TabsContent value="planner" className="space-y-6">
             <div className="grid grid-cols-1 gap-6">
-              {/* Main Calendar Grid Area */}
-              <CalendarGridView segments={segments} timeSlots={timeSlots} />
+              {/* Main Planner Grid Area */}
+              <PlannerGridView segments={segments} timeSlots={timeSlots} />
               
               {/* Impact Panel Below */}
               <div className="max-w-4xl mx-auto">
@@ -138,18 +134,6 @@ function SmartPlannerContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value="calendar" className="space-y-6">
-            {defaultsLoading ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Carregando configurações padrão...</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <CalendarView segments={segments} />
-            )}
-          </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
             {/* Performance Summary */}

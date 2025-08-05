@@ -153,6 +153,25 @@ export function SlotWizard({ isOpen, onOpenChange, date, timeSlot, segments, edi
     
     console.log('[SlotWizard] Saving slots for dates:', config.selectedDates);
     
+    // Check max planning window
+    const maxPlanningDays = state.maxPlanningWindow || 30;
+    const today = new Date();
+    const invalidDates = config.selectedDates.filter(date => {
+      const diffTime = date.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > maxPlanningDays;
+    });
+    
+    if (invalidDates.length > 0) {
+      const { toast } = require('@/hooks/use-toast');
+      toast({
+        title: "Data excede limite de planejamento",
+        description: `Algumas datas excedem o limite de ${maxPlanningDays} dias`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Create slots for all selected dates
     config.selectedDates.forEach(date => {
       const dateString = format(date, 'yyyy-MM-dd');

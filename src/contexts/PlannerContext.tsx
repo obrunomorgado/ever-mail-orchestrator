@@ -19,6 +19,7 @@ export interface CampaignSegment {
 export interface PlannedCampaign {
   id: string;
   segmentId: string;
+  templateId?: string;
   name: string;
   size: number;
   ctr: number;
@@ -71,7 +72,7 @@ interface PlannerState {
 
 type PlannerAction =
   | { type: 'MOVE_SEGMENT'; payload: { segmentId: string; fromSlot: string; toSlot: string; date?: string } }
-  | { type: 'CREATE_SLOT'; payload: { date: string; timeSlot: string; segmentId: string; templateId: string } }
+  | { type: 'CREATE_SLOT'; payload: { date: string; timeSlot: string; segmentId: string; templateId?: string } }
   | { type: 'REMOVE_SLOT'; payload: { date: string; timeSlot: string; slotId: string } }
   | { type: 'CLONE_SLOT'; payload: { slotId: string; sourceDate: string; targetDate: string } }
   | { type: 'DUPLICATE_DAY'; payload: { date: string; offset: number; untilDate?: string } }
@@ -356,12 +357,14 @@ function plannerReducer(state: PlannerState, action: PlannerAction): PlannerStat
 interface PlannerContextType {
   state: PlannerState;
   moveSegment: (segmentId: string, fromSlot: string, toSlot: string, date?: string) => void;
-  createSlot: (date: string, timeSlot: string, segmentId: string, templateId: string) => void;
+  createSlot: (date: string, timeSlot: string, segmentId: string, templateId?: string) => void;
   removeSlot: (date: string, timeSlot: string, slotId: string) => void;
   cloneSlot: (slotId: string, sourceDate: string, targetDate: string) => void;
   duplicateDay: (date: string, offset: number, untilDate?: string) => void;
   undo: () => void;
   redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   updateImpact: (impact: RealtimeImpact) => void;
   calculateTotalRevenue: () => number;
   checkFrequencyViolations: () => string[];
@@ -378,7 +381,7 @@ interface PlannerContextType {
   setFrequencyCap: (cap: number) => void;
   setMaxPlanningWindow: (window: number) => void;
   calculateProgressToGoal: () => { current: number; target: number; percentage: number };
-  updateClickLimit: (date: string, timeSlot: string, campaignId: string, clickLimit: number) => void;
+  updateClickLimit: (campaignId: string, clickLimit: number) => void;
 }
 
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
@@ -578,7 +581,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [undo, redo]);
 
   // New functions for CalendarView
-  const createSlot = useCallback((date: string, timeSlot: string, segmentId: string, templateId: string) => {
+  const createSlot = useCallback((date: string, timeSlot: string, segmentId: string, templateId?: string) => {
     dispatch({ type: 'CREATE_SLOT', payload: { date, timeSlot, segmentId, templateId } });
     
     toast({
@@ -621,12 +624,21 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [toast]);
 
-  const updateClickLimit = useCallback((date: string, timeSlot: string, campaignId: string, clickLimit: number) => {
-    dispatch({
-      type: 'UPDATE_CLICK_LIMIT',
-      payload: { date, timeSlot, campaignId, clickLimit }
+  const updateClickLimit = useCallback((campaignId: string, clickLimit: number) => {
+    // Find campaign and update click limit
+    let found = false;
+    Object.keys(state.plannedCampaigns).forEach(date => {
+      Object.keys(state.plannedCampaigns[date]).forEach(timeSlot => {
+        if (state.plannedCampaigns[date][timeSlot].some(c => c.id === campaignId)) {
+          dispatch({
+            type: 'UPDATE_CLICK_LIMIT',
+            payload: { date, timeSlot, campaignId, clickLimit }
+          });
+          found = true;
+        }
+      });
     });
-  }, []);
+  }, [state.plannedCampaigns]);
 
   const value: PlannerContextType = {
     state,
@@ -637,6 +649,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     duplicateDay,
     undo,
     redo,
+    canUndo: state.historyIndex >= 0,
+    canRedo: state.historyIndex < state.history.length - 1,
     updateImpact,
     calculateTotalRevenue,
     checkFrequencyViolations,
