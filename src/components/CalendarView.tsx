@@ -16,6 +16,8 @@ import { usePlanner, CampaignSegment, PlannedCampaign } from '@/contexts/Planner
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SlotWizard } from './SlotWizard';
+import { GlobalSchedulerSettings } from './GlobalSchedulerSettings';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, addWeeks, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -145,7 +147,7 @@ const SlotCard = React.memo<SlotCardProps>(({ campaign, date, timeSlot, violatio
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onDuplicate}>
                 <Copy className="h-4 w-4 mr-2" />
-                Duplicar para Próximo Dia
+                Duplicar ▸
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
@@ -224,7 +226,8 @@ export function CalendarView({ segments }: CalendarViewProps) {
     calculateProgressToGoal,
     removeSlot,
     cloneSlot,
-    duplicateDay
+    duplicateDay,
+    // Note: These are placeholder references - implementation completed in context
   } = usePlanner();
   
   const { defaults, validateTimeSlot, isLoading: defaultsLoading } = usePlannerDefaults();
@@ -236,6 +239,7 @@ export function CalendarView({ segments }: CalendarViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; timeSlot: string } | null>(null);
+  const [editingSlot, setEditingSlot] = useState<{ date: string; timeSlot: string; campaignId: string } | null>(null);
 
   console.log('[Planner/CalendarView] Rendering with view type:', state.viewType);
 
@@ -346,8 +350,9 @@ export function CalendarView({ segments }: CalendarViewProps) {
   }, []);
 
   const handleSlotEdit = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
-    // TODO: Implement edit functionality
     console.log('[CalendarView] Edit slot:', campaign.id, date, timeSlot);
+    setEditingSlot({ date, timeSlot, campaignId: campaign.id });
+    setWizardOpen(true);
   }, []);
 
   const handleSlotDuplicate = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
@@ -362,6 +367,24 @@ export function CalendarView({ segments }: CalendarViewProps) {
   const handleSlotRemove = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
     removeSlot(date, timeSlot, campaign.id);
   }, [removeSlot]);
+
+  // Copy functionality removed for now - can be implemented later
+
+  // Keyboard shortcuts
+  const { shortcuts } = useKeyboardShortcuts({
+    onAddCampaign: () => {
+      setSelectedSlot({ date: format(new Date(), 'yyyy-MM-dd'), timeSlot: state.anchorTimes[0] });
+      setWizardOpen(true);
+    },
+    onDuplicateSelected: () => {
+      // TODO: Implement duplicate selected functionality
+      console.log('[CalendarView] Duplicate selected triggered');
+    },
+    onRemoveSelected: () => {
+      // TODO: Implement remove selected functionality
+      console.log('[CalendarView] Remove selected triggered');
+    }
+  });
 
   // Render performance tracking
   useEffect(() => {
