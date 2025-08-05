@@ -163,7 +163,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [state.bestTimeRecommendations]);
 
   const updateImpact = useCallback((impact: RealtimeImpact) => {
-    setPlannerState(prev => ({ ...prev, impact }));
+    setPlannerState({ ...state, impact });
     
     if (impact.frequencyCapViolation) {
       toast({
@@ -195,17 +195,17 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       clickLimit: Math.round(segment.size * segment.ctr) // Default: expected clicks
     };
     
-    setPlannerState(prev => ({
-      ...prev,
-      availableSegments: prev.availableSegments.filter(s => s.id !== segmentId),
+    setPlannerState({
+      ...state,
+      availableSegments: state.availableSegments.filter(s => s.id !== segmentId),
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [date]: {
-          ...prev.plannedCampaigns[date],
-          [timeSlot]: [...(prev.plannedCampaigns[date]?.[timeSlot] || []), plannedCampaign]
+          ...state.plannedCampaigns[date],
+          [timeSlot]: [...(state.plannedCampaigns[date]?.[timeSlot] || []), plannedCampaign]
         }
       }
-    }));
+    });
     
     toast({
       title: "Campanha Agendada",
@@ -224,17 +224,17 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       timeSlot: 'available'
     };
     
-    setPlannerState(prev => ({
-      ...prev,
-      availableSegments: [...prev.availableSegments, segment],
+    setPlannerState({
+      ...state,
+      availableSegments: [...state.availableSegments, segment],
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [date]: {
-          ...prev.plannedCampaigns[date],
-          [timeSlot]: prev.plannedCampaigns[date][timeSlot].filter(c => c.id !== slotId)
+          ...state.plannedCampaigns[date],
+          [timeSlot]: state.plannedCampaigns[date][timeSlot].filter(c => c.id !== slotId)
         }
       }
-    }));
+    });
     
     toast({
       title: "Campanha Removida",
@@ -267,16 +267,16 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       id: nanoid()
     };
     
-    setPlannerState(prev => ({
-      ...prev,
+    setPlannerState({
+      ...state,
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [targetDate]: {
-          ...prev.plannedCampaigns[targetDate],
-          [sourceTimeSlot]: [...(prev.plannedCampaigns[targetDate]?.[sourceTimeSlot] || []), clonedCampaign]
+          ...state.plannedCampaigns[targetDate],
+          [sourceTimeSlot]: [...(state.plannedCampaigns[targetDate]?.[sourceTimeSlot] || []), clonedCampaign]
         }
       }
-    }));
+    });
     
     toast({
       title: "Campanha Clonada",
@@ -302,13 +302,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       }));
     }
     
-    setPlannerState(prev => ({
-      ...prev,
+    setPlannerState({
+      ...state,
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [targetDateString]: clonedSlots
       }
-    }));
+    });
     
     toast({
       title: "Dia Duplicado",
@@ -318,20 +318,20 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [state.plannedCampaigns, setPlannerState, toast]);
 
   const setSlotClickLimit = useCallback((date: string, timeSlot: string, campaignId: string, clickLimit: number) => {
-    setPlannerState(prev => ({
-      ...prev,
+    setPlannerState({
+      ...state,
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [date]: {
-          ...prev.plannedCampaigns[date],
-          [timeSlot]: prev.plannedCampaigns[date]?.[timeSlot]?.map(campaign =>
+          ...state.plannedCampaigns[date],
+          [timeSlot]: state.plannedCampaigns[date]?.[timeSlot]?.map(campaign =>
             campaign.id === campaignId
               ? { ...campaign, clickLimit }
               : campaign
           ) || []
         }
       }
-    }));
+    });
   }, [setPlannerState]);
 
   const getClickStatus = useCallback((date: string, timeSlot: string): 'low' | 'medium' | 'high' => {
@@ -372,16 +372,16 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       timeSlot: targetHour
     };
     
-    setPlannerState(prev => ({
-      ...prev,
+    setPlannerState({
+      ...state,
       plannedCampaigns: {
-        ...prev.plannedCampaigns,
+        ...state.plannedCampaigns,
         [targetDate]: {
-          ...prev.plannedCampaigns[targetDate],
-          [targetHour]: [...(prev.plannedCampaigns[targetDate]?.[targetHour] || []), clonedCampaign]
+          ...state.plannedCampaigns[targetDate],
+          [targetHour]: [...(state.plannedCampaigns[targetDate]?.[targetHour] || []), clonedCampaign]
         }
       }
-    }));
+    });
     
     toast({
       title: "Configuração Colada",
@@ -412,7 +412,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   // Planner 3.0 functions
   const setDailyClickGoal = useCallback((goal: number) => {
-    setPlannerState(prev => ({ ...prev, dailyClickGoal: goal }));
+    setPlannerState({ ...state, dailyClickGoal: goal });
     toast({
       title: "Meta Atualizada",
       description: `Nova meta diária: ${goal.toLocaleString()} cliques`,
@@ -421,7 +421,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [setPlannerState, toast]);
 
   const setCoolDown = useCallback((days: number) => {
-    setPlannerState(prev => ({ ...prev, coolDown: days }));
+    setPlannerState({ ...state, coolDown: days });
     toast({
       title: "Cool-down Atualizado",
       description: `Período mínimo entre campanhas: ${days} dias`,
@@ -430,15 +430,15 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [setPlannerState, toast]);
 
   const setViewType = useCallback((view: 'week' | 'month') => {
-    setPlannerState(prev => ({ ...prev, viewType: view }));
+    setPlannerState({ ...state, viewType: view });
   }, [setPlannerState]);
 
   const setCurrentPeriod = useCallback((date: Date) => {
-    setPlannerState(prev => ({ ...prev, currentPeriod: date }));
+    setPlannerState({ ...state, currentPeriod: date });
   }, [setPlannerState]);
 
   const setAnchorTimes = useCallback((times: string[]) => {
-    setPlannerState(prev => ({ ...prev, anchorTimes: times }));
+    setPlannerState({ ...state, anchorTimes: times });
     toast({
       title: "Horários-âncora Atualizados",
       description: `Novos horários: ${times.join(', ')}`,
@@ -447,7 +447,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [setPlannerState, toast]);
 
   const setFrequencyCap = useCallback((cap: number) => {
-    setPlannerState(prev => ({ ...prev, frequencyCap: cap }));
+    setPlannerState({ ...state, frequencyCap: cap });
     toast({
       title: "Frequency Cap Atualizado",
       description: `Novo limite: ${cap} email(s) por destinatário/24h`,
@@ -456,7 +456,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [setPlannerState, toast]);
 
   const setMaxPlanningWindow = useCallback((window: number) => {
-    setPlannerState(prev => ({ ...prev, maxPlanningWindow: window }));
+    setPlannerState({ ...state, maxPlanningWindow: window });
     toast({
       title: "Janela de Planejamento Atualizada",
       description: `Máximo: ${window} dias no futuro`,

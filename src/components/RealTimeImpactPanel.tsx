@@ -8,8 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePlanner } from '@/contexts/PlannerContext';
 
 export function RealTimeImpactPanel() {
-  const { state, undo, redo, autoOptimizeSchedule, calculateTotalRevenue } = usePlanner();
-  const { impact, history, historyIndex } = state;
+  const { state, undo, redo, autoOptimizeSchedule, calculateTotalRevenue, canUndo, canRedo } = usePlanner();
+  const { impact } = state;
 
   const getRevenueColor = (change: number) => {
     if (change > 0) return 'text-success';
@@ -23,8 +23,6 @@ export function RealTimeImpactPanel() {
     return 'text-destructive';
   };
 
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < history.length - 1;
 
   return (
     <div className="space-y-4">
@@ -185,33 +183,9 @@ export function RealTimeImpactPanel() {
           
           <ScrollArea className="h-32">
             <div className="space-y-2">
-              {history.slice().reverse().map((action, index) => (
-                <div 
-                  key={action.id}
-                  className={`text-xs p-2 rounded border ${
-                    historyIndex === history.length - 1 - index 
-                      ? 'bg-primary/10 border-primary' 
-                      : 'bg-muted/50'
-                  }`}
-                >
-                  <div className="font-medium">{action.action}</div>
-                  <div className="text-muted-foreground text-[10px] mt-1">
-                    {action.description}
-                  </div>
-                  <div className="text-muted-foreground text-[10px]">
-                    {action.timestamp.toLocaleTimeString('pt-BR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </div>
-                </div>
-              ))}
-              
-              {history.length === 0 && (
-                <div className="text-xs text-muted-foreground text-center py-4">
-                  Nenhuma ação realizada ainda
-                </div>
-              )}
+              <div className="text-xs text-muted-foreground text-center py-4">
+                Histórico disponível através dos botões Desfazer/Refazer
+              </div>
             </div>
           </ScrollArea>
         </CardContent>

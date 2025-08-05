@@ -138,7 +138,7 @@ function CampaignCard({
   const { state } = usePlanner();
   const isMobile = useIsMobile();
   const [isEditing, setIsEditing] = useState(false);
-  const { updateClickLimit } = usePlanner();
+  const { setSlotClickLimit } = usePlanner();
 
   // Calculate click limit status
   const estimatedClicks = Math.round(campaign.size * campaign.ctr);
@@ -156,7 +156,7 @@ function CampaignCard({
 
   const handleClickLimitChange = (value: string) => {
     const newLimit = parseInt(value) || 0;
-    updateClickLimit(campaign.id, newLimit);
+    setSlotClickLimit(date, timeSlot, campaign.id, newLimit);
     setIsEditing(false);
   };
 
