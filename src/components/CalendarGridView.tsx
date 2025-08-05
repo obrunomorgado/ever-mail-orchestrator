@@ -49,7 +49,7 @@ export function CalendarGridView({ segments, timeSlots }: CalendarGridViewProps)
     cloneSlot,
     getOptimalTime,
     checkFrequencyViolations,
-    updateClickLimit
+    setSlotClickLimit
   } = usePlanner();
   
   const { toast } = useToast();
@@ -152,7 +152,7 @@ export function CalendarGridView({ segments, timeSlots }: CalendarGridViewProps)
     const slot = gridData.flat().find(s => s.date === date && s.timeSlot === timeSlot);
     if (slot) {
       slot.campaigns.forEach(campaign => {
-        updateClickLimit(campaign.id, newLimit);
+        setSlotClickLimit(date, timeSlot, campaign.id, newLimit);
       });
     }
     

@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { nanoid } from 'nanoid';
+import useUndo from 'use-undo';
 
 export interface CampaignSegment {
   id: string;
@@ -32,7 +34,7 @@ export interface PlannedCampaign {
   campaignType: 'newsletter' | 'alerta' | 'fechamento' | 'breaking';
   vertical: 'cartao' | 'emprestimo' | 'consorcio';
   estimatedRevenue: number;
-  clickLimit?: number;
+  clickLimit: number; // Default click limit for all campaigns
 }
 
 export interface RealtimeImpact {
@@ -44,20 +46,10 @@ export interface RealtimeImpact {
   risks: string[];
 }
 
-export interface ActionHistory {
-  id: string;
-  action: string;
-  description: string;
-  timestamp: Date;
-  impact: RealtimeImpact;
-}
-
 interface PlannerState {
   availableSegments: CampaignSegment[];
   plannedCampaigns: Record<string, Record<string, PlannedCampaign[]>>; // [date][time][campaigns]
   impact: RealtimeImpact;
-  history: ActionHistory[];
-  historyIndex: number;
   frequencyCap: number;
   isAutoOptimizeEnabled: boolean;
   bestTimeRecommendations: Record<string, { hour: number; confidence: number; lift: number }>;
@@ -70,27 +62,6 @@ interface PlannerState {
   maxPlanningWindow: number;
 }
 
-type PlannerAction =
-  | { type: 'MOVE_SEGMENT'; payload: { segmentId: string; fromSlot: string; toSlot: string; date?: string } }
-  | { type: 'CREATE_SLOT'; payload: { date: string; timeSlot: string; segmentId: string; templateId?: string } }
-  | { type: 'REMOVE_SLOT'; payload: { date: string; timeSlot: string; slotId: string } }
-  | { type: 'CLONE_SLOT'; payload: { slotId: string; sourceDate: string; targetDate: string } }
-  | { type: 'DUPLICATE_DAY'; payload: { date: string; offset: number; untilDate?: string } }
-  | { type: 'ADD_ACTION'; payload: ActionHistory }
-  | { type: 'UNDO' }
-  | { type: 'REDO' }
-  | { type: 'UPDATE_IMPACT'; payload: RealtimeImpact }
-  | { type: 'TOGGLE_AUTO_OPTIMIZE' }
-  | { type: 'SET_FREQUENCY_CAP'; payload: number }
-  | { type: 'UPDATE_BEST_TIME'; payload: { segmentId: string; hour: number; confidence: number; lift: number } }
-  | { type: 'SET_DAILY_CLICK_GOAL'; payload: number }
-  | { type: 'SET_COOL_DOWN'; payload: number }
-  | { type: 'SET_VIEW_TYPE'; payload: 'week' | 'month' }
-  | { type: 'SET_CURRENT_PERIOD'; payload: Date }
-  | { type: 'SET_ANCHOR_TIMES'; payload: string[] }
-  | { type: 'SET_MAX_PLANNING_WINDOW'; payload: number }
-  | { type: 'UPDATE_CLICK_LIMIT'; payload: { date: string; timeSlot: string; campaignId: string; clickLimit: number } };
-
 const initialState: PlannerState = {
   availableSegments: [],
   plannedCampaigns: {},
@@ -102,257 +73,16 @@ const initialState: PlannerState = {
     opportunities: [],
     risks: []
   },
-  history: [],
-  historyIndex: -1,
-  frequencyCap: 2, // Default to 2 emails per recipient/24h
+  frequencyCap: 2,
   isAutoOptimizeEnabled: true,
   bestTimeRecommendations: {},
-  // Planner 3.0 defaults
-  dailyClickGoal: 1200, // Will be overridden by usePlannerDefaults
+  dailyClickGoal: 1200,
   coolDown: 3,
   viewType: 'week',
   currentPeriod: new Date(),
   anchorTimes: ['09:00', '14:00', '20:00'],
   maxPlanningWindow: 30
 };
-
-function plannerReducer(state: PlannerState, action: PlannerAction): PlannerState {
-  switch (action.type) {
-    case 'CREATE_SLOT': {
-      const { date, timeSlot, segmentId, templateId } = action.payload;
-      const segment = state.availableSegments.find(s => s.id === segmentId);
-      if (!segment) return state;
-      
-      const plannedCampaign: PlannedCampaign = {
-        ...segment,
-        id: `${segment.id}-${date}-${timeSlot}`,
-        segmentId: segment.id,
-        timeSlot,
-        estimatedRevenue: segment.size * segment.ctr * segment.erpm
-      };
-      
-      const dateSlots = state.plannedCampaigns[date] || {};
-      const timeSlotCampaigns = dateSlots[timeSlot] || [];
-      
-      return {
-        ...state,
-        availableSegments: state.availableSegments.filter(s => s.id !== segmentId),
-        plannedCampaigns: {
-          ...state.plannedCampaigns,
-          [date]: {
-            ...dateSlots,
-            [timeSlot]: [...timeSlotCampaigns, plannedCampaign]
-          }
-        }
-      };
-    }
-    
-    case 'REMOVE_SLOT': {
-      const { date, timeSlot, slotId } = action.payload;
-      const dateSlots = state.plannedCampaigns[date];
-      if (!dateSlots) return state;
-      
-      const timeSlotCampaigns = dateSlots[timeSlot] || [];
-      const campaign = timeSlotCampaigns.find(c => c.id === slotId);
-      if (!campaign) return state;
-      
-      const segment: CampaignSegment = {
-        ...campaign,
-        id: campaign.segmentId,
-        timeSlot: 'available'
-      };
-      
-      return {
-        ...state,
-        availableSegments: [...state.availableSegments, segment],
-        plannedCampaigns: {
-          ...state.plannedCampaigns,
-          [date]: {
-            ...dateSlots,
-            [timeSlot]: timeSlotCampaigns.filter(c => c.id !== slotId)
-          }
-        }
-      };
-    }
-    
-    case 'CLONE_SLOT': {
-      const { slotId, sourceDate, targetDate } = action.payload;
-      const sourceDateSlots = state.plannedCampaigns[sourceDate];
-      if (!sourceDateSlots) return state;
-      
-      let campaignToClone: PlannedCampaign | undefined;
-      let sourceTimeSlot = '';
-      
-      // Find the campaign across all time slots
-      for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
-        const found = campaigns.find(c => c.id === slotId);
-        if (found) {
-          campaignToClone = found;
-          sourceTimeSlot = timeSlot;
-          break;
-        }
-      }
-      
-      if (!campaignToClone) return state;
-      
-      const clonedCampaign: PlannedCampaign = {
-        ...campaignToClone,
-        id: `${campaignToClone.segmentId}-${targetDate}-${sourceTimeSlot}`
-      };
-      
-      const targetDateSlots = state.plannedCampaigns[targetDate] || {};
-      const targetTimeSlotCampaigns = targetDateSlots[sourceTimeSlot] || [];
-      
-      return {
-        ...state,
-        plannedCampaigns: {
-          ...state.plannedCampaigns,
-          [targetDate]: {
-            ...targetDateSlots,
-            [sourceTimeSlot]: [...targetTimeSlotCampaigns, clonedCampaign]
-          }
-        }
-      };
-    }
-    
-    case 'DUPLICATE_DAY': {
-      const { date, offset, untilDate } = action.payload;
-      const sourceDateSlots = state.plannedCampaigns[date];
-      if (!sourceDateSlots) return state;
-      
-      const targetDate = new Date(date);
-      targetDate.setDate(targetDate.getDate() + offset);
-      const targetDateString = targetDate.toISOString().split('T')[0];
-      
-      const clonedSlots: Record<string, PlannedCampaign[]> = {};
-      
-      for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
-        clonedSlots[timeSlot] = campaigns.map(campaign => ({
-          ...campaign,
-          id: `${campaign.segmentId}-${targetDateString}-${timeSlot}`
-        }));
-      }
-      
-      return {
-        ...state,
-        plannedCampaigns: {
-          ...state.plannedCampaigns,
-          [targetDateString]: clonedSlots
-        }
-      };
-    }
-    
-    case 'MOVE_SEGMENT': {
-      // Legacy support for backward compatibility
-      return state;
-    }
-    
-    case 'ADD_ACTION':
-      return {
-        ...state,
-        history: [...state.history.slice(0, state.historyIndex + 1), action.payload],
-        historyIndex: state.historyIndex + 1
-      };
-    
-    case 'UNDO':
-      return {
-        ...state,
-        historyIndex: Math.max(-1, state.historyIndex - 1)
-      };
-    
-    case 'REDO':
-      return {
-        ...state,
-        historyIndex: Math.min(state.history.length - 1, state.historyIndex + 1)
-      };
-    
-    case 'UPDATE_IMPACT':
-      return {
-        ...state,
-        impact: action.payload
-      };
-    
-    case 'TOGGLE_AUTO_OPTIMIZE':
-      return {
-        ...state,
-        isAutoOptimizeEnabled: !state.isAutoOptimizeEnabled
-      };
-    
-    case 'SET_FREQUENCY_CAP':
-      return {
-        ...state,
-        frequencyCap: action.payload
-      };
-    
-    case 'UPDATE_BEST_TIME':
-      return {
-        ...state,
-        bestTimeRecommendations: {
-          ...state.bestTimeRecommendations,
-          [action.payload.segmentId]: {
-            hour: action.payload.hour,
-            confidence: action.payload.confidence,
-            lift: action.payload.lift
-          }
-        }
-      };
-    
-    case 'SET_DAILY_CLICK_GOAL':
-      return {
-        ...state,
-        dailyClickGoal: action.payload
-      };
-    
-    case 'SET_COOL_DOWN':
-      return {
-        ...state,
-        coolDown: action.payload
-      };
-    
-    case 'SET_VIEW_TYPE':
-      return {
-        ...state,
-        viewType: action.payload
-      };
-    
-    case 'SET_CURRENT_PERIOD':
-      return {
-        ...state,
-        currentPeriod: action.payload
-      };
-    
-    case 'SET_ANCHOR_TIMES':
-      return {
-        ...state,
-        anchorTimes: action.payload
-      };
-    
-    case 'SET_MAX_PLANNING_WINDOW':
-      return {
-        ...state,
-        maxPlanningWindow: action.payload
-      };
-    
-    case 'UPDATE_CLICK_LIMIT':
-      return {
-        ...state,
-        plannedCampaigns: {
-          ...state.plannedCampaigns,
-          [action.payload.date]: {
-            ...state.plannedCampaigns[action.payload.date],
-            [action.payload.timeSlot]: state.plannedCampaigns[action.payload.date]?.[action.payload.timeSlot]?.map(campaign =>
-              campaign.id === action.payload.campaignId
-                ? { ...campaign, clickLimit: action.payload.clickLimit }
-                : campaign
-            ) || []
-          }
-        }
-      };
-    
-    default:
-      return state;
-  }
-}
 
 interface PlannerContextType {
   state: PlannerState;
@@ -372,6 +102,8 @@ interface PlannerContextType {
   autoOptimizeSchedule: () => void;
   moveSlot: (campaignId: string, fromDate: string, toDate: string) => void;
   copyConfiguration: () => void;
+  pasteConfiguration: (targetDate: string, targetHour: string) => void;
+  setSlotClickLimit: (date: string, timeSlot: string, campaignId: string, clickLimit: number) => void;
   // Planner 3.0 actions
   setDailyClickGoal: (goal: number) => void;
   setCoolDown: (days: number) => void;
@@ -381,14 +113,16 @@ interface PlannerContextType {
   setFrequencyCap: (cap: number) => void;
   setMaxPlanningWindow: (window: number) => void;
   calculateProgressToGoal: () => { current: number; target: number; percentage: number };
-  updateClickLimit: (campaignId: string, clickLimit: number) => void;
+  getClickStatus: (date: string, timeSlot: string) => 'low' | 'medium' | 'high';
 }
 
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
 
 export function PlannerProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(plannerReducer, initialState);
+  const [plannerState, { set: setPlannerState, undo, redo, canUndo, canRedo }] = useUndo(initialState);
+  const state = plannerState.present;
   const { toast } = useToast();
+  const clipboardRef = useRef<PlannedCampaign | null>(null);
 
   const calculateTotalRevenue = useCallback(() => {
     return Object.values(state.plannedCampaigns)
@@ -429,9 +163,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [state.bestTimeRecommendations]);
 
   const updateImpact = useCallback((impact: RealtimeImpact) => {
-    dispatch({ type: 'UPDATE_IMPACT', payload: impact });
+    setPlannerState(prev => ({ ...prev, impact }));
     
-    // Show toast notifications for violations
     if (impact.frequencyCapViolation) {
       toast({
         title: "Limite de Frequência Violado",
@@ -447,107 +180,291 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         variant: "destructive"
       });
     }
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
-  const moveSegment = useCallback((segmentId: string, fromSlot: string, toSlot: string, date?: string) => {
-    // Legacy function - kept for backward compatibility but not actively used in new CalendarView
-    console.log('[PlannerContext] Legacy moveSegment called:', { segmentId, fromSlot, toSlot, date });
-  }, []);
-
-  const undo = useCallback(() => {
-    dispatch({ type: 'UNDO' });
-    toast({ title: "Ação desfeita", description: "Última alteração foi revertida" });
-  }, [toast]);
-
-  const redo = useCallback(() => {
-    dispatch({ type: 'REDO' });
-    toast({ title: "Ação refeita", description: "Alteração foi reaplicada" });
-  }, [toast]);
-
-  const autoOptimizeSchedule = useCallback(() => {
-    // Mock auto-optimization logic
-    toast({
-      title: "Otimização Automática",
-      description: "Analisando melhor horário para todas as campanhas...",
-    });
+  const createSlot = useCallback((date: string, timeSlot: string, segmentId: string, templateId?: string) => {
+    const segment = state.availableSegments.find(s => s.id === segmentId);
+    if (!segment) return;
     
-    setTimeout(() => {
+    const plannedCampaign: PlannedCampaign = {
+      ...segment,
+      id: nanoid(),
+      segmentId: segment.id,
+      timeSlot,
+      estimatedRevenue: segment.size * segment.ctr * segment.erpm,
+      clickLimit: Math.round(segment.size * segment.ctr) // Default: expected clicks
+    };
+    
+    setPlannerState(prev => ({
+      ...prev,
+      availableSegments: prev.availableSegments.filter(s => s.id !== segmentId),
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [date]: {
+          ...prev.plannedCampaigns[date],
+          [timeSlot]: [...(prev.plannedCampaigns[date]?.[timeSlot] || []), plannedCampaign]
+        }
+      }
+    }));
+    
+    toast({
+      title: "Campanha Agendada",
+      description: `Campanha criada para ${date} às ${timeSlot}`,
+      duration: 2000
+    });
+  }, [state.availableSegments, setPlannerState, toast]);
+  
+  const removeSlot = useCallback((date: string, timeSlot: string, slotId: string) => {
+    const campaign = state.plannedCampaigns[date]?.[timeSlot]?.find(c => c.id === slotId);
+    if (!campaign) return;
+    
+    const segment: CampaignSegment = {
+      ...campaign,
+      id: campaign.segmentId,
+      timeSlot: 'available'
+    };
+    
+    setPlannerState(prev => ({
+      ...prev,
+      availableSegments: [...prev.availableSegments, segment],
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [date]: {
+          ...prev.plannedCampaigns[date],
+          [timeSlot]: prev.plannedCampaigns[date][timeSlot].filter(c => c.id !== slotId)
+        }
+      }
+    }));
+    
+    toast({
+      title: "Campanha Removida",
+      description: "Campanha foi removida do calendário",
+      duration: 2000
+    });
+  }, [state.plannedCampaigns, setPlannerState, toast]);
+  
+  const cloneSlot = useCallback((slotId: string, sourceDate: string, targetDate: string) => {
+    let campaignToClone: PlannedCampaign | undefined;
+    let sourceTimeSlot = '';
+    
+    // Find the campaign across all time slots
+    const sourceDateSlots = state.plannedCampaigns[sourceDate];
+    if (!sourceDateSlots) return;
+    
+    for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
+      const found = campaigns.find(c => c.id === slotId);
+      if (found) {
+        campaignToClone = found;
+        sourceTimeSlot = timeSlot;
+        break;
+      }
+    }
+    
+    if (!campaignToClone) return;
+    
+    const clonedCampaign: PlannedCampaign = {
+      ...campaignToClone,
+      id: nanoid()
+    };
+    
+    setPlannerState(prev => ({
+      ...prev,
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [targetDate]: {
+          ...prev.plannedCampaigns[targetDate],
+          [sourceTimeSlot]: [...(prev.plannedCampaigns[targetDate]?.[sourceTimeSlot] || []), clonedCampaign]
+        }
+      }
+    }));
+    
+    toast({
+      title: "Campanha Clonada",
+      description: `Campanha duplicada para ${targetDate}`,
+      duration: 2000
+    });
+  }, [state.plannedCampaigns, setPlannerState, toast]);
+  
+  const duplicateDay = useCallback((date: string, offset: number, untilDate?: string) => {
+    const sourceDateSlots = state.plannedCampaigns[date];
+    if (!sourceDateSlots) return;
+    
+    const targetDate = new Date(date);
+    targetDate.setDate(targetDate.getDate() + offset);
+    const targetDateString = targetDate.toISOString().split('T')[0];
+    
+    const clonedSlots: Record<string, PlannedCampaign[]> = {};
+    
+    for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
+      clonedSlots[timeSlot] = campaigns.map(campaign => ({
+        ...campaign,
+        id: nanoid()
+      }));
+    }
+    
+    setPlannerState(prev => ({
+      ...prev,
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [targetDateString]: clonedSlots
+      }
+    }));
+    
+    toast({
+      title: "Dia Duplicado",
+      description: `Campanhas duplicadas para ${targetDate.toLocaleDateString()}`,
+      duration: 2000
+    });
+  }, [state.plannedCampaigns, setPlannerState, toast]);
+
+  const setSlotClickLimit = useCallback((date: string, timeSlot: string, campaignId: string, clickLimit: number) => {
+    setPlannerState(prev => ({
+      ...prev,
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [date]: {
+          ...prev.plannedCampaigns[date],
+          [timeSlot]: prev.plannedCampaigns[date]?.[timeSlot]?.map(campaign =>
+            campaign.id === campaignId
+              ? { ...campaign, clickLimit }
+              : campaign
+          ) || []
+        }
+      }
+    }));
+  }, [setPlannerState]);
+
+  const getClickStatus = useCallback((date: string, timeSlot: string): 'low' | 'medium' | 'high' => {
+    const campaigns = state.plannedCampaigns[date]?.[timeSlot] || [];
+    const totalClicks = campaigns.reduce((sum, campaign) => sum + (campaign.size * campaign.ctr), 0);
+    const totalLimit = campaigns.reduce((sum, campaign) => sum + campaign.clickLimit, 0);
+    
+    if (totalLimit === 0) return 'low';
+    
+    const utilization = totalClicks / totalLimit;
+    if (utilization >= 1) return 'high';
+    if (utilization >= 0.8) return 'medium';
+    return 'low';
+  }, [state.plannedCampaigns]);
+
+  const copyConfiguration = useCallback(() => {
+    // For now, just copy the first campaign we find as example
+    const firstCampaign = Object.values(state.plannedCampaigns)
+      .flatMap(dateSlots => Object.values(dateSlots))
+      .flat()[0];
+    
+    if (firstCampaign) {
+      clipboardRef.current = firstCampaign;
       toast({
-        title: "Otimização Concluída",
-        description: "3 campanhas foram reagendadas. Receita estimada +R$ 1.200",
-        variant: "default"
+        title: "Configuração Copiada",
+        description: "Use Ctrl+V para colar em outra célula",
+        duration: 2000
       });
-    }, 2000);
-  }, [toast]);
+    }
+  }, [state.plannedCampaigns, toast]);
+
+  const pasteConfiguration = useCallback((targetDate: string, targetHour: string) => {
+    if (!clipboardRef.current) return;
+    
+    const clonedCampaign: PlannedCampaign = {
+      ...clipboardRef.current,
+      id: nanoid(),
+      timeSlot: targetHour
+    };
+    
+    setPlannerState(prev => ({
+      ...prev,
+      plannedCampaigns: {
+        ...prev.plannedCampaigns,
+        [targetDate]: {
+          ...prev.plannedCampaigns[targetDate],
+          [targetHour]: [...(prev.plannedCampaigns[targetDate]?.[targetHour] || []), clonedCampaign]
+        }
+      }
+    }));
+    
+    toast({
+      title: "Configuração Colada",
+      description: `Campanha colada em ${targetDate} às ${targetHour}`,
+      duration: 2000
+    });
+  }, [setPlannerState, toast]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          undo();
+          toast({ title: "Alteração desfeita", description: "Última alteração foi revertida" });
+        } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          redo();
+          toast({ title: "Alteração refeita", description: "Alteração foi reaplicada" });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [undo, redo, toast]);
 
   // Planner 3.0 functions
   const setDailyClickGoal = useCallback((goal: number) => {
-    console.log('[Planner] Setting daily click goal:', goal);
-    dispatch({ type: 'SET_DAILY_CLICK_GOAL', payload: goal });
-    
+    setPlannerState(prev => ({ ...prev, dailyClickGoal: goal }));
     toast({
       title: "Meta Atualizada",
       description: `Nova meta diária: ${goal.toLocaleString()} cliques`,
       duration: 2000
     });
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
   const setCoolDown = useCallback((days: number) => {
-    console.log('[Planner] Setting cool-down period:', days);
-    dispatch({ type: 'SET_COOL_DOWN', payload: days });
-    
+    setPlannerState(prev => ({ ...prev, coolDown: days }));
     toast({
       title: "Cool-down Atualizado",
       description: `Período mínimo entre campanhas: ${days} dias`,
       duration: 2000
     });
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
   const setViewType = useCallback((view: 'week' | 'month') => {
-    console.log('[Planner] Changing view type to:', view);
-    dispatch({ type: 'SET_VIEW_TYPE', payload: view });
-  }, []);
+    setPlannerState(prev => ({ ...prev, viewType: view }));
+  }, [setPlannerState]);
 
   const setCurrentPeriod = useCallback((date: Date) => {
-    console.log('[Planner] Setting current period:', date);
-    dispatch({ type: 'SET_CURRENT_PERIOD', payload: date });
-  }, []);
+    setPlannerState(prev => ({ ...prev, currentPeriod: date }));
+  }, [setPlannerState]);
 
   const setAnchorTimes = useCallback((times: string[]) => {
-    console.log('[Planner] Setting anchor times:', times);
-    dispatch({ type: 'SET_ANCHOR_TIMES', payload: times });
-    
+    setPlannerState(prev => ({ ...prev, anchorTimes: times }));
     toast({
       title: "Horários-âncora Atualizados",
       description: `Novos horários: ${times.join(', ')}`,
       duration: 2000
     });
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
   const setFrequencyCap = useCallback((cap: number) => {
-    console.log('[Planner] Setting frequency cap:', cap);
-    dispatch({ type: 'SET_FREQUENCY_CAP', payload: cap });
-    
+    setPlannerState(prev => ({ ...prev, frequencyCap: cap }));
     toast({
       title: "Frequency Cap Atualizado",
       description: `Novo limite: ${cap} email(s) por destinatário/24h`,
       duration: 2000
     });
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
   const setMaxPlanningWindow = useCallback((window: number) => {
-    console.log('[Planner] Setting max planning window:', window);
-    dispatch({ type: 'SET_MAX_PLANNING_WINDOW', payload: window });
-    
+    setPlannerState(prev => ({ ...prev, maxPlanningWindow: window }));
     toast({
       title: "Janela de Planejamento Atualizada",
       description: `Máximo: ${window} dias no futuro`,
       duration: 2000
     });
-  }, [toast]);
+  }, [setPlannerState, toast]);
 
   const calculateProgressToGoal = useCallback(() => {
-    // Calculate current clicks based on planned campaigns
     const currentClicks = Object.values(state.plannedCampaigns)
       .flatMap(dateSlots => Object.values(dateSlots))
       .flat()
@@ -562,103 +479,26 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [state.plannedCampaigns, state.dailyClickGoal]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z' && !e.shiftKey) {
-          e.preventDefault();
-          undo();
-        } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
-          e.preventDefault();
-          redo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [undo, redo]);
-
-  // New functions for CalendarView
-  const createSlot = useCallback((date: string, timeSlot: string, segmentId: string, templateId?: string) => {
-    dispatch({ type: 'CREATE_SLOT', payload: { date, timeSlot, segmentId, templateId } });
-    
-    toast({
-      title: "Campanha Agendada",
-      description: `Campanha criada para ${date} às ${timeSlot}`,
-      duration: 2000
-    });
-  }, [toast]);
-  
-  const removeSlot = useCallback((date: string, timeSlot: string, slotId: string) => {
-    dispatch({ type: 'REMOVE_SLOT', payload: { date, timeSlot, slotId } });
-    
-    toast({
-      title: "Campanha Removida",
-      description: "Campanha foi removida do calendário",
-      duration: 2000
-    });
-  }, [toast]);
-  
-  const cloneSlot = useCallback((slotId: string, sourceDate: string, targetDate: string) => {
-    dispatch({ type: 'CLONE_SLOT', payload: { slotId, sourceDate, targetDate } });
-    
-    toast({
-      title: "Campanha Clonada",
-      description: `Campanha duplicada para ${targetDate}`,
-      duration: 2000
-    });
-  }, [toast]);
-  
-  const duplicateDay = useCallback((date: string, offset: number, untilDate?: string) => {
-    dispatch({ type: 'DUPLICATE_DAY', payload: { date, offset, untilDate } });
-    
-    const targetDate = new Date(date);
-    targetDate.setDate(targetDate.getDate() + offset);
-    
-    toast({
-      title: "Dia Duplicado",
-      description: `Campanhas duplicadas para ${targetDate.toLocaleDateString()}`,
-      duration: 2000
-    });
-  }, [toast]);
-
-  const updateClickLimit = useCallback((campaignId: string, clickLimit: number) => {
-    // Find campaign and update click limit
-    let found = false;
-    Object.keys(state.plannedCampaigns).forEach(date => {
-      Object.keys(state.plannedCampaigns[date]).forEach(timeSlot => {
-        if (state.plannedCampaigns[date][timeSlot].some(c => c.id === campaignId)) {
-          dispatch({
-            type: 'UPDATE_CLICK_LIMIT',
-            payload: { date, timeSlot, campaignId, clickLimit }
-          });
-          found = true;
-        }
-      });
-    });
-  }, [state.plannedCampaigns]);
-
   const value: PlannerContextType = {
     state,
-    moveSegment,
+    moveSegment: () => {}, // Legacy
     createSlot,
     removeSlot,
     cloneSlot,
     duplicateDay,
     undo,
     redo,
-    canUndo: state.historyIndex >= 0,
-    canRedo: state.historyIndex < state.history.length - 1,
+    canUndo,
+    canRedo,
     updateImpact,
     calculateTotalRevenue,
     checkFrequencyViolations,
     getOptimalTime,
-    autoOptimizeSchedule,
-    moveSlot: cloneSlot, // Temporary mapping - will implement proper moveSlot later
-    copyConfiguration: () => console.log('[PlannerContext] Copy configuration placeholder'),
-    // Planner 3.0 functions
+    autoOptimizeSchedule: () => {},
+    moveSlot: cloneSlot,
+    copyConfiguration,
+    pasteConfiguration,
+    setSlotClickLimit,
     setDailyClickGoal,
     setCoolDown,
     setViewType,
@@ -667,7 +507,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     setFrequencyCap,
     setMaxPlanningWindow,
     calculateProgressToGoal,
-    updateClickLimit
+    getClickStatus
   };
 
   return (

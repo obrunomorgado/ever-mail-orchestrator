@@ -14,9 +14,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { usePlanner, CampaignSegment } from '@/contexts/PlannerContext';
 import { TemplatePreview, mockTemplates } from './TemplatePreview';
-import { format, addDays, addWeeks } from 'date-fns';
+import { format, addDays, addWeeks, isAfter, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface SlotWizardProps {
   isOpen: boolean;
@@ -131,7 +132,18 @@ export function SlotWizard({ isOpen, onOpenChange, date, timeSlot, segments, edi
   }, []);
 
   const handleDateSelect = (dates: Date[]) => {
-    setConfig(prev => ({ ...prev, selectedDates: dates }));
+    if (!dates) return;
+    
+    // Deduplicate dates
+    const uniqueDates = dates.filter((date, index, self) => 
+      index === self.findIndex(d => format(d, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd'))
+    );
+    
+    // Filter out past dates
+    const today = new Date();
+    const validDates = uniqueDates.filter(date => !isBefore(date, today));
+    
+    setConfig(prev => ({ ...prev, selectedDates: validDates }));
   };
 
   const handleAudienceSelect = (audience: any) => {
@@ -148,32 +160,41 @@ export function SlotWizard({ isOpen, onOpenChange, date, timeSlot, segments, edi
     setStep(3);
   };
 
+  const { toast } = useToast();
+  
   const handleSave = () => {
     if (!selectedAudience || !selectedTemplate || config.selectedDates.length === 0) return;
     
     console.log('[SlotWizard] Saving slots for dates:', config.selectedDates);
     
-    // Check max planning window
+    // Final validation before saving
     const maxPlanningDays = state.maxPlanningWindow || 30;
     const today = new Date();
-    const invalidDates = config.selectedDates.filter(date => {
-      const diffTime = date.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > maxPlanningDays;
-    });
+    const maxDate = addDays(today, maxPlanningDays);
     
-    if (invalidDates.length > 0) {
-      const { toast } = require('@/hooks/use-toast');
+    const validDates = config.selectedDates.filter(date => 
+      !isBefore(date, today) && !isAfter(date, maxDate)
+    );
+    
+    if (validDates.length === 0) {
       toast({
-        title: "Data excede limite de planejamento",
-        description: `Algumas datas excedem o limite de ${maxPlanningDays} dias`,
+        title: "Nenhuma data válida",
+        description: `Selecione datas entre hoje e ${maxPlanningDays} dias no futuro`,
         variant: "destructive"
       });
       return;
     }
     
-    // Create slots for all selected dates
-    config.selectedDates.forEach(date => {
+    if (validDates.length !== config.selectedDates.length) {
+      toast({
+        title: "Algumas datas foram ignoradas",
+        description: `${config.selectedDates.length - validDates.length} datas excedem o limite de planejamento`,
+        variant: "destructive"
+      });
+    }
+    
+    // Create slots for all valid dates
+    validDates.forEach(date => {
       const dateString = format(date, 'yyyy-MM-dd');
       createSlot(dateString, config.selectedTime, selectedAudience.id, selectedTemplate);
     });
@@ -208,6 +229,35 @@ export function SlotWizard({ isOpen, onOpenChange, date, timeSlot, segments, edi
   };
 
   const handleNext = () => {
+    if (step === 0) {
+      // Validate dates before proceeding to step 1
+      if (config.selectedDates.length === 0) {
+        toast({
+          title: "Selecione pelo menos uma data",
+          description: "É necessário selecionar ao menos uma data para continuar",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const maxPlanningDays = state.maxPlanningWindow || 30;
+      const today = new Date();
+      const maxDate = addDays(today, maxPlanningDays);
+      
+      const invalidDates = config.selectedDates.filter(date => 
+        isBefore(date, today) || isAfter(date, maxDate)
+      );
+      
+      if (invalidDates.length > 0) {
+        toast({
+          title: "Datas inválidas detectadas",
+          description: `${invalidDates.length} data(s) estão fora do período permitido`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     if (step < 3) setStep((step + 1) as 0 | 1 | 2 | 3);
   };
 
