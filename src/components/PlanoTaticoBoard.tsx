@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { Calendar, Clock, Users, DollarSign, Target, Brain, Settings, Save, Download, Play, Search, Filter, AlertTriangle, CheckCircle, XCircle, Zap } from 'lucide-react';
+import { Calendar, Clock, Users, DollarSign, Target, Brain, Settings, Save, Download, Play, Search, Filter, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, Shield, TrendingUp, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,11 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import { usePlanner, CampaignSegment, PlannedCampaign } from '@/contexts/PlannerContext';
 import { useToast } from '@/hooks/use-toast';
 import { segments, templates } from '@/mocks/demoData';
+import { RevenueDashboard } from '@/components/RevenueDashboard';
+import { GlobalSchedulerSettings } from '@/components/GlobalSchedulerSettings';
+import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 
 console.log('[PlanoTaticoBoard] Component loading');
 
@@ -401,133 +406,316 @@ export function PlanoTaticoBoard() {
 
         {/* Interface Principal */}
         <div className="flex">
-          {/* Painel Lateral */}
-          <div className="w-80 border-r border-border bg-card p-4 space-y-6 max-h-screen overflow-y-auto">
-            {/* Controles */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Nº de Envios</label>
-                <Input 
-                  type="number" 
-                  value={maxEmails} 
-                  onChange={(e) => setMaxEmails(Number(e.target.value))}
-                  min={1}
-                  max={50}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Frequency-Cap (envios/dia)</label>
-                <Slider
-                  value={[frequencyCap]}
-                  onValueChange={(value) => setFrequencyCap(value[0])}
-                  max={10}
-                  min={1}
-                  step={1}
-                  className="mt-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">{frequencyCap} emails por destinatário/24h</p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Cool-down (recência)</label>
-                <Slider
-                  value={[cooldownDays]}
-                  onValueChange={(value) => setCooldownDays(value[0])}
-                  max={30}
-                  min={1}
-                  step={1}
-                  className="mt-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">{cooldownDays} dias entre campanhas similares</p>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {/* Audiências */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Audiências</h3>
-                <Badge variant="outline">{filteredSegments.length}</Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <Input
-                  placeholder="Buscar audiência..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-8"
-                />
-                
-                <Select value={audienceFilter} onValueChange={setAudienceFilter}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="newsletter">Newsletter</SelectItem>
-                    <SelectItem value="alerta">Alerta</SelectItem>
-                    <SelectItem value="fechamento">Fechamento</SelectItem>
-                    <SelectItem value="breaking">Breaking</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Droppable droppableId="segments">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2 max-h-80 overflow-y-auto">
-                    {filteredSegments.map((segment, index) => (
-                      <Draggable key={segment.id} draggableId={segment.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                          >
-                            <AudienceCard segment={segment} isDragging={snapshot.isDragging} />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+          {/* Painel Lateral Inteligente */}
+          <div className="w-96 border-r border-border bg-card max-h-screen overflow-hidden">
+            <Tabs defaultValue="audiences" className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-4 rounded-none border-b">
+                <TabsTrigger value="audiences" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Audiências
+                </TabsTrigger>
+                <TabsTrigger value="templates" className="gap-2">
+                  <Brain className="h-4 w-4" />
+                  Templates
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Config
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="flex-1 overflow-hidden">
+                {/* Aba Audiências */}
+                <TabsContent value="audiences" className="h-full m-0 p-4 space-y-4 overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Audiências Disponíveis</h3>
+                    <Badge variant="outline">{filteredSegments.length}</Badge>
                   </div>
-                )}
-              </Droppable>
-            </div>
-            
-            <Separator />
-            
-            {/* Templates */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Templates</h3>
-                <Badge variant="outline">{filteredTemplates.length}</Badge>
+                  
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Buscar audiência..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-9"
+                    />
+                    
+                    <Select value={audienceFilter} onValueChange={setAudienceFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as audiências</SelectItem>
+                        <SelectItem value="newsletter">Newsletter</SelectItem>
+                        <SelectItem value="alerta">Alerta</SelectItem>
+                        <SelectItem value="fechamento">Fechamento</SelectItem>
+                        <SelectItem value="breaking">Breaking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Droppable droppableId="segments">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                        {filteredSegments.map((segment, index) => (
+                          <Draggable key={segment.id} draggableId={segment.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <AudienceCard segment={segment} isDragging={snapshot.isDragging} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </TabsContent>
+
+                {/* Aba Templates */}
+                <TabsContent value="templates" className="h-full m-0 p-4 space-y-4 overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Templates Rankeados</h3>
+                    <Badge variant="outline">{filteredTemplates.length}</Badge>
+                  </div>
+                  
+                  <Select value={templateFilter} onValueChange={setTemplateFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os templates</SelectItem>
+                      <SelectItem value="favorites">Favoritos ⭐</SelectItem>
+                      <SelectItem value="recent">Recentes 🆕</SelectItem>
+                      <SelectItem value="low-spam">Baixo Spam ✅</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="space-y-3">
+                    {filteredTemplates.map((template) => (
+                      <TemplateCard 
+                        key={template.id} 
+                        template={template} 
+                        score={template.score}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* Aba Analytics */}
+                <TabsContent value="analytics" className="h-full m-0 p-4 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Analytics Integrado</h3>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Eye className="h-4 w-4" />
+                            Detalhes
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                              <TrendingUp className="h-5 w-5" />
+                              Analytics Completo - Plano Tático
+                            </DialogTitle>
+                            <DialogDescription>
+                              Visão detalhada de performance, ROI e otimizações do planejamento atual
+                            </DialogDescription>
+                          </DialogHeader>
+                          <RevenueDashboard segments={segments} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    {/* Resumo compacto do RevenueDashboard */}
+                    <div className="space-y-3">
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Resumo Financeiro</span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Receita projetada:</span>
+                              <span className="font-medium">R$ {metrics.revenue.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">vs Manual:</span>
+                              <span className="text-success">+{((metrics.revenue / 50000) * 100).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Shield className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Score de Risco</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className={cn(
+                              "text-lg font-bold",
+                              violations.hasAny ? "text-destructive" : "text-success"
+                            )}>
+                              {violations.hasAny ? "ALTO" : "BAIXO"}
+                            </span>
+                            <Badge variant={violations.hasAny ? "destructive" : "default"}>
+                              {violations.frequency.length + violations.cooldown.length + violations.overlap.length} riscos
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Target className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Performance</span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Campanhas ativas:</span>
+                              <span className="font-medium">{metrics.emails}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Base engajada:</span>
+                              <span className="font-medium">{metrics.basePercentage.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Aba Configurações */}
+                <TabsContent value="settings" className="h-full m-0 p-4 space-y-4 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Configurações</h3>
+                      <GlobalSchedulerSettings 
+                        trigger={
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Settings className="h-4 w-4" />
+                            Avançado
+                          </Button>
+                        }
+                      />
+                    </div>
+
+                    {/* Controles Rápidos */}
+                    <Card>
+                      <CardContent className="p-4 space-y-4">
+                        <div>
+                          <label className="text-sm font-medium">Nº de Envios</label>
+                          <Input 
+                            type="number" 
+                            value={maxEmails} 
+                            onChange={(e) => setMaxEmails(Number(e.target.value))}
+                            min={1}
+                            max={50}
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Limite máximo de campanhas no plano
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium">Frequency-Cap</label>
+                          <Slider
+                            value={[frequencyCap]}
+                            onValueChange={(value) => setFrequencyCap(value[0])}
+                            max={10}
+                            min={1}
+                            step={1}
+                            className="mt-2"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {frequencyCap} emails por destinatário/24h
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium">Cool-down</label>
+                          <Slider
+                            value={[cooldownDays]}
+                            onValueChange={(value) => setCooldownDays(value[0])}
+                            max={30}
+                            min={1}
+                            step={1}
+                            className="mt-2"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {cooldownDays} dias entre campanhas similares
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Proteções de Deliverability Compacta */}
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Shield className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">Proteções Ativas</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Spam Guard</span>
+                            <Badge variant="default" className="text-xs">Normal</Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Bounce Shield</span>
+                            <Badge variant="default" className="text-xs">Normal</Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Frequency Shield</span>
+                            <Badge variant={violations.frequency.length > 0 ? "destructive" : "default"} className="text-xs">
+                              {violations.frequency.length > 0 ? "Ativo" : "Normal"}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full mt-3 gap-2">
+                              <Shield className="h-4 w-4" />
+                              Ver Proteções Completas
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                <Shield className="h-5 w-5" />
+                                Deliverability Shield - Proteções Completas
+                              </DialogTitle>
+                              <DialogDescription>
+                                Monitoramento e proteções em tempo real para preservar a reputação de envio
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DeliverabilityShield />
+                          </DialogContent>
+                        </Dialog>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
               </div>
-              
-              <Select value={templateFilter} onValueChange={setTemplateFilter}>
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="favorites">Favoritos ⭐</SelectItem>
-                  <SelectItem value="recent">Recentes 🆕</SelectItem>
-                  <SelectItem value="low-spam">Baixo Spam ✅</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {filteredTemplates.map((template) => (
-                  <TemplateCard 
-                    key={template.id} 
-                    template={template} 
-                    score={template.score}
-                  />
-                ))}
-              </div>
-            </div>
+            </Tabs>
           </div>
 
           {/* Grade Principal */}
