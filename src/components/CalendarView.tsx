@@ -226,8 +226,7 @@ export function CalendarView({ segments }: CalendarViewProps) {
     calculateProgressToGoal,
     removeSlot,
     cloneSlot,
-    duplicateDay,
-    // Note: These are placeholder references - implementation completed in context
+    duplicateDay
   } = usePlanner();
   
   const { defaults, validateTimeSlot, isLoading: defaultsLoading } = usePlannerDefaults();

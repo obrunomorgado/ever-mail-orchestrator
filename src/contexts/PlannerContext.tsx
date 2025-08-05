@@ -349,9 +349,8 @@ interface PlannerContextType {
   checkFrequencyViolations: () => string[];
   getOptimalTime: (segmentId: string, campaignType: string, vertical: string) => { hour: number; confidence: number; lift: number };
   autoOptimizeSchedule: () => void;
-  cloneSlots: (fromDate: string, toDates: string[]) => void;
-  moveSlot: (fromSlot: { date: string; hour: string }, toDate: string, toHour: string) => void;
-  copyConfiguration: (slotId: string) => void;
+  moveSlot: (campaignId: string, fromDate: string, toDate: string) => void;
+  copyConfiguration: () => void;
   // Planner 3.0 actions
   setDailyClickGoal: (goal: number) => void;
   setCoolDown: (days: number) => void;
@@ -617,9 +616,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     checkFrequencyViolations,
     getOptimalTime,
     autoOptimizeSchedule,
-    cloneSlots,
-    moveSlot: moveSlotBetween,
-    copyConfiguration,
+    moveSlot: cloneSlot, // Temporary mapping - will implement proper moveSlot later
+    copyConfiguration: () => console.log('[PlannerContext] Copy configuration placeholder'),
     // Planner 3.0 functions
     setDailyClickGoal,
     setCoolDown,
