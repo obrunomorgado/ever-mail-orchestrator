@@ -23,6 +23,13 @@ export function SmartDragDrop({ timeSlots }: SmartDragDropProps) {
   const { toast } = useToast();
   const [draggedSegment, setDraggedSegment] = useState<string | null>(null);
 
+  // Helper function to get campaigns for a time slot across all dates
+  const getCampaignsForTimeSlot = (timeSlot: string): PlannedCampaign[] => {
+    return Object.values(plannedCampaigns)
+      .map(dateSlots => dateSlots[timeSlot] || [])
+      .flat();
+  };
+
   const onDragStart = (result: any) => {
     setDraggedSegment(result.draggableId);
   };
@@ -258,11 +265,11 @@ export function SmartDragDrop({ timeSlots }: SmartDragDropProps) {
                   <h3 className="font-semibold">{timeSlot}</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {plannedCampaigns[timeSlot]?.length || 0} campanha(s) agendada(s)
+                  {getCampaignsForTimeSlot(timeSlot).length} campanha(s) agendada(s)
                 </p>
-                {plannedCampaigns[timeSlot]?.length > 0 && (
+                {getCampaignsForTimeSlot(timeSlot).length > 0 && (
                   <div className="text-xs text-primary mt-1">
-                    Receita: R$ {plannedCampaigns[timeSlot]
+                    Receita: R$ {getCampaignsForTimeSlot(timeSlot)
                       .reduce((sum, campaign) => sum + campaign.estimatedRevenue, 0)
                       .toFixed(0)}
                   </div>
@@ -281,11 +288,11 @@ export function SmartDragDrop({ timeSlots }: SmartDragDropProps) {
                           : ''
                       } transition-all duration-200`}
                     >
-                      {plannedCampaigns[timeSlot]?.map((campaign, index) => (
+                      {getCampaignsForTimeSlot(timeSlot).map((campaign, index) => (
                         <SegmentCard key={campaign.id} segment={campaign} index={index} />
                       ))}
                       {provided.placeholder}
-                      {(!plannedCampaigns[timeSlot] || plannedCampaigns[timeSlot].length === 0) && !snapshot.isDraggingOver && (
+                      {getCampaignsForTimeSlot(timeSlot).length === 0 && !snapshot.isDraggingOver && (
                         <div className="text-center text-muted-foreground text-sm py-12">
                           <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
                           Solte campanhas aqui
