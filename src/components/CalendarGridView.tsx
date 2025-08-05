@@ -183,93 +183,93 @@ export function CalendarGridView({ segments, timeSlots }: CalendarGridViewProps)
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header with Navigation */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Planner de Campanhas 2.0
-            </CardTitle>
-            
-            {/* Week Navigation */}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
+    <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <div className="space-y-4">
+        {/* Header with Navigation */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Planner de Campanhas 2.0
+              </CardTitle>
               
-              <div className="text-sm font-medium min-w-[200px] text-center">
-                {format(weekDays[0], 'dd/MM', { locale: ptBR })} - {format(weekDays[6], 'dd/MM', { locale: ptBR })}
-              </div>
-              
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Available Segments Sidebar */}
-      <div className="grid grid-cols-12 gap-4">
-        <Card className="col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Segmentos Disponíveis ({state.availableSegments.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Droppable droppableId="available">
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`space-y-2 min-h-[300px] ${
-                    snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg p-2' : ''
-                  }`}
-                >
-                  {state.availableSegments.map((segment, index) => (
-                    <Draggable key={segment.id} draggableId={segment.id} index={index}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className={`${snapshot.isDragging ? 'rotate-1 scale-105' : ''} transition-all`}
-                        >
-                          <Card className="cursor-move hover:shadow-md transition-shadow">
-                            <CardContent className="p-3">
-                              <div className="space-y-2">
-                                <h4 className="text-xs font-medium">{segment.name}</h4>
-                                <div className="flex gap-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {segment.campaignType}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {segment.vertical}
-                                  </Badge>
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {(segment.size / 1000).toFixed(0)}k contatos • CTR {(segment.ctr * 100).toFixed(1)}%
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
+              {/* Week Navigation */}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="text-sm font-medium min-w-[200px] text-center">
+                  {format(weekDays[0], 'dd/MM', { locale: ptBR })} - {format(weekDays[6], 'dd/MM', { locale: ptBR })}
                 </div>
-              )}
-            </Droppable>
-          </CardContent>
+                
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
         </Card>
 
-        {/* Calendar Grid */}
-        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        {/* Available Segments Sidebar */}
+        <div className="grid grid-cols-12 gap-4">
+          <Card className="col-span-3">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Segmentos Disponíveis ({state.availableSegments.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Droppable droppableId="available">
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`space-y-2 min-h-[300px] ${
+                      snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg p-2' : ''
+                    }`}
+                  >
+                    {state.availableSegments.map((segment, index) => (
+                      <Draggable key={segment.id} draggableId={segment.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`${snapshot.isDragging ? 'rotate-1 scale-105' : ''} transition-all`}
+                          >
+                            <Card className="cursor-move hover:shadow-md transition-shadow">
+                              <CardContent className="p-3">
+                                <div className="space-y-2">
+                                  <h4 className="text-xs font-medium">{segment.name}</h4>
+                                  <div className="flex gap-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {segment.campaignType}
+                                    </Badge>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {segment.vertical}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {(segment.size / 1000).toFixed(0)}k contatos • CTR {(segment.ctr * 100).toFixed(1)}%
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </CardContent>
+          </Card>
+
+          {/* Calendar Grid */}
           <div className="col-span-9">
             <Card>
               <CardContent className="p-4">
@@ -490,8 +490,8 @@ export function CalendarGridView({ segments, timeSlots }: CalendarGridViewProps)
               </CardContent>
             </Card>
           </div>
-        </DragDropContext>
+        </div>
       </div>
-    </div>
+    </DragDropContext>
   );
 }
