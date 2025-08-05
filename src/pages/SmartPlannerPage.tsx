@@ -9,6 +9,7 @@ import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
 import { SmartDragDrop } from '@/components/SmartDragDrop';
 import { CalendarView } from '@/components/CalendarView';
+import { CalendarGridView } from '@/components/CalendarGridView';
 import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
@@ -126,17 +127,13 @@ function SmartPlannerContent() {
           </TabsList>
 
           <TabsContent value="planner" className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-              {/* Main Planner Area */}
-              <div className="xl:col-span-3">
-                <SmartDragDrop timeSlots={timeSlots} />
-              </div>
+            <div className="grid grid-cols-1 gap-6">
+              {/* Main Calendar Grid Area */}
+              <CalendarGridView segments={segments} timeSlots={timeSlots} />
               
-              {/* Impact Panel Sidebar */}
-              <div className="xl:col-span-1">
-                <div className="sticky top-6">
-                  <RealTimeImpactPanel />
-                </div>
+              {/* Impact Panel Below */}
+              <div className="max-w-4xl mx-auto">
+                <RealTimeImpactPanel />
               </div>
             </div>
           </TabsContent>

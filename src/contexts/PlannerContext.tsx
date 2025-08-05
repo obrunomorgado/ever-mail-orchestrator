@@ -31,6 +31,7 @@ export interface PlannedCampaign {
   campaignType: 'newsletter' | 'alerta' | 'fechamento' | 'breaking';
   vertical: 'cartao' | 'emprestimo' | 'consorcio';
   estimatedRevenue: number;
+  clickLimit?: number;
 }
 
 export interface RealtimeImpact {
@@ -86,7 +87,8 @@ type PlannerAction =
   | { type: 'SET_VIEW_TYPE'; payload: 'week' | 'month' }
   | { type: 'SET_CURRENT_PERIOD'; payload: Date }
   | { type: 'SET_ANCHOR_TIMES'; payload: string[] }
-  | { type: 'SET_MAX_PLANNING_WINDOW'; payload: number };
+  | { type: 'SET_MAX_PLANNING_WINDOW'; payload: number }
+  | { type: 'UPDATE_CLICK_LIMIT'; payload: { date: string; timeSlot: string; campaignId: string; clickLimit: number } };
 
 const initialState: PlannerState = {
   availableSegments: [],
@@ -330,6 +332,22 @@ function plannerReducer(state: PlannerState, action: PlannerAction): PlannerStat
         maxPlanningWindow: action.payload
       };
     
+    case 'UPDATE_CLICK_LIMIT':
+      return {
+        ...state,
+        plannedCampaigns: {
+          ...state.plannedCampaigns,
+          [action.payload.date]: {
+            ...state.plannedCampaigns[action.payload.date],
+            [action.payload.timeSlot]: state.plannedCampaigns[action.payload.date]?.[action.payload.timeSlot]?.map(campaign =>
+              campaign.id === action.payload.campaignId
+                ? { ...campaign, clickLimit: action.payload.clickLimit }
+                : campaign
+            ) || []
+          }
+        }
+      };
+    
     default:
       return state;
   }
@@ -360,6 +378,7 @@ interface PlannerContextType {
   setFrequencyCap: (cap: number) => void;
   setMaxPlanningWindow: (window: number) => void;
   calculateProgressToGoal: () => { current: number; target: number; percentage: number };
+  updateClickLimit: (date: string, timeSlot: string, campaignId: string, clickLimit: number) => void;
 }
 
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
@@ -601,6 +620,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       duration: 2000
     });
   }, [toast]);
+
+  const updateClickLimit = useCallback((date: string, timeSlot: string, campaignId: string, clickLimit: number) => {
+    dispatch({
+      type: 'UPDATE_CLICK_LIMIT',
+      payload: { date, timeSlot, campaignId, clickLimit }
+    });
+  }, []);
+
   const value: PlannerContextType = {
     state,
     moveSegment,
@@ -625,7 +652,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     setAnchorTimes,
     setFrequencyCap,
     setMaxPlanningWindow,
-    calculateProgressToGoal
+    calculateProgressToGoal,
+    updateClickLimit
   };
 
   return (
