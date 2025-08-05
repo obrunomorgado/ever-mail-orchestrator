@@ -43,15 +43,15 @@ function SmartPlannerContent() {
     }
   }, [defaultsLoading, defaults, setDailyClickGoal, setCoolDown, setAnchorTimes]);
 
-  const totalCampaigns = Object.values(state.plannedCampaigns).flat().length;
-  const totalContacts = Object.values(state.plannedCampaigns)
-    .flat()
-    .reduce((sum, campaign) => sum + campaign.size, 0);
+  const allCampaigns = Object.values(state.plannedCampaigns)
+    .flatMap(dateSlots => Object.values(dateSlots))
+    .flat();
+  
+  const totalCampaigns = allCampaigns.length;
+  const totalContacts = allCampaigns.reduce((sum, campaign) => sum + campaign.size, 0);
   
   const avgCTR = totalCampaigns > 0 
-    ? Object.values(state.plannedCampaigns)
-        .flat()
-        .reduce((sum, campaign) => sum + campaign.ctr, 0) / totalCampaigns * 100
+    ? allCampaigns.reduce((sum, campaign) => sum + campaign.ctr, 0) / totalCampaigns * 100
     : 0;
 
   const frequencyViolations = checkFrequencyViolations();

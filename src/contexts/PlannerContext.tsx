@@ -52,7 +52,7 @@ export interface ActionHistory {
 
 interface PlannerState {
   availableSegments: CampaignSegment[];
-  plannedCampaigns: Record<string, PlannedCampaign[]>;
+  plannedCampaigns: Record<string, Record<string, PlannedCampaign[]>>; // [date][time][campaigns]
   impact: RealtimeImpact;
   history: ActionHistory[];
   historyIndex: number;
@@ -68,7 +68,11 @@ interface PlannerState {
 }
 
 type PlannerAction =
-  | { type: 'MOVE_SEGMENT'; payload: { segmentId: string; fromSlot: string; toSlot: string } }
+  | { type: 'MOVE_SEGMENT'; payload: { segmentId: string; fromSlot: string; toSlot: string; date?: string } }
+  | { type: 'CREATE_SLOT'; payload: { date: string; timeSlot: string; segmentId: string; templateId: string } }
+  | { type: 'REMOVE_SLOT'; payload: { date: string; timeSlot: string; slotId: string } }
+  | { type: 'CLONE_SLOT'; payload: { slotId: string; sourceDate: string; targetDate: string } }
+  | { type: 'DUPLICATE_DAY'; payload: { date: string; offset: number; untilDate?: string } }
   | { type: 'ADD_ACTION'; payload: ActionHistory }
   | { type: 'UNDO' }
   | { type: 'REDO' }
@@ -84,14 +88,7 @@ type PlannerAction =
 
 const initialState: PlannerState = {
   availableSegments: [],
-  plannedCampaigns: {
-    '07:00': [],
-    '09:00': [],
-    '12:00': [],
-    '15:00': [],
-    '18:00': [],
-    '20:00': []
-  },
+  plannedCampaigns: {},
   impact: {
     revenueChange: 0,
     overlapRisk: 0,
@@ -115,66 +112,133 @@ const initialState: PlannerState = {
 
 function plannerReducer(state: PlannerState, action: PlannerAction): PlannerState {
   switch (action.type) {
-    case 'MOVE_SEGMENT': {
-      // Complex logic for moving segments and updating impact
-      const { segmentId, fromSlot, toSlot } = action.payload;
+    case 'CREATE_SLOT': {
+      const { date, timeSlot, segmentId, templateId } = action.payload;
+      const segment = state.availableSegments.find(s => s.id === segmentId);
+      if (!segment) return state;
       
-      if (fromSlot === 'available') {
-        // Moving from available to time slot
-        const segment = state.availableSegments.find(s => s.id === segmentId);
-        if (!segment) return state;
-        
-        const plannedCampaign: PlannedCampaign = {
-          ...segment,
-          id: `${segment.id}-${toSlot}`,
-          segmentId: segment.id,
-          timeSlot: toSlot,
-          estimatedRevenue: segment.size * segment.ctr * segment.erpm
-        };
-        
-        return {
-          ...state,
-          availableSegments: state.availableSegments.filter(s => s.id !== segmentId),
-          plannedCampaigns: {
-            ...state.plannedCampaigns,
-            [toSlot]: [...state.plannedCampaigns[toSlot], plannedCampaign]
+      const plannedCampaign: PlannedCampaign = {
+        ...segment,
+        id: `${segment.id}-${date}-${timeSlot}`,
+        segmentId: segment.id,
+        timeSlot,
+        estimatedRevenue: segment.size * segment.ctr * segment.erpm
+      };
+      
+      const dateSlots = state.plannedCampaigns[date] || {};
+      const timeSlotCampaigns = dateSlots[timeSlot] || [];
+      
+      return {
+        ...state,
+        availableSegments: state.availableSegments.filter(s => s.id !== segmentId),
+        plannedCampaigns: {
+          ...state.plannedCampaigns,
+          [date]: {
+            ...dateSlots,
+            [timeSlot]: [...timeSlotCampaigns, plannedCampaign]
           }
-        };
-      } else if (toSlot === 'available') {
-        // Moving back to available
-        const campaign = state.plannedCampaigns[fromSlot]?.find(c => c.segmentId === segmentId);
-        if (!campaign) return state;
-        
-        const segment: CampaignSegment = {
-          ...campaign,
-          id: campaign.segmentId,
-          timeSlot: 'available'
-        };
-        
-        return {
-          ...state,
-          availableSegments: [...state.availableSegments, segment],
-          plannedCampaigns: {
-            ...state.plannedCampaigns,
-            [fromSlot]: state.plannedCampaigns[fromSlot].filter(c => c.segmentId !== segmentId)
+        }
+      };
+    }
+    
+    case 'REMOVE_SLOT': {
+      const { date, timeSlot, slotId } = action.payload;
+      const dateSlots = state.plannedCampaigns[date];
+      if (!dateSlots) return state;
+      
+      const timeSlotCampaigns = dateSlots[timeSlot] || [];
+      const campaign = timeSlotCampaigns.find(c => c.id === slotId);
+      if (!campaign) return state;
+      
+      const segment: CampaignSegment = {
+        ...campaign,
+        id: campaign.segmentId,
+        timeSlot: 'available'
+      };
+      
+      return {
+        ...state,
+        availableSegments: [...state.availableSegments, segment],
+        plannedCampaigns: {
+          ...state.plannedCampaigns,
+          [date]: {
+            ...dateSlots,
+            [timeSlot]: timeSlotCampaigns.filter(c => c.id !== slotId)
           }
-        };
-      } else {
-        // Moving between time slots
-        const campaign = state.plannedCampaigns[fromSlot]?.find(c => c.segmentId === segmentId);
-        if (!campaign) return state;
-        
-        const updatedCampaign = { ...campaign, timeSlot: toSlot, id: `${campaign.segmentId}-${toSlot}` };
-        
-        return {
-          ...state,
-          plannedCampaigns: {
-            ...state.plannedCampaigns,
-            [fromSlot]: state.plannedCampaigns[fromSlot].filter(c => c.segmentId !== segmentId),
-            [toSlot]: [...state.plannedCampaigns[toSlot], updatedCampaign]
-          }
-        };
+        }
+      };
+    }
+    
+    case 'CLONE_SLOT': {
+      const { slotId, sourceDate, targetDate } = action.payload;
+      const sourceDateSlots = state.plannedCampaigns[sourceDate];
+      if (!sourceDateSlots) return state;
+      
+      let campaignToClone: PlannedCampaign | undefined;
+      let sourceTimeSlot = '';
+      
+      // Find the campaign across all time slots
+      for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
+        const found = campaigns.find(c => c.id === slotId);
+        if (found) {
+          campaignToClone = found;
+          sourceTimeSlot = timeSlot;
+          break;
+        }
       }
+      
+      if (!campaignToClone) return state;
+      
+      const clonedCampaign: PlannedCampaign = {
+        ...campaignToClone,
+        id: `${campaignToClone.segmentId}-${targetDate}-${sourceTimeSlot}`
+      };
+      
+      const targetDateSlots = state.plannedCampaigns[targetDate] || {};
+      const targetTimeSlotCampaigns = targetDateSlots[sourceTimeSlot] || [];
+      
+      return {
+        ...state,
+        plannedCampaigns: {
+          ...state.plannedCampaigns,
+          [targetDate]: {
+            ...targetDateSlots,
+            [sourceTimeSlot]: [...targetTimeSlotCampaigns, clonedCampaign]
+          }
+        }
+      };
+    }
+    
+    case 'DUPLICATE_DAY': {
+      const { date, offset, untilDate } = action.payload;
+      const sourceDateSlots = state.plannedCampaigns[date];
+      if (!sourceDateSlots) return state;
+      
+      const targetDate = new Date(date);
+      targetDate.setDate(targetDate.getDate() + offset);
+      const targetDateString = targetDate.toISOString().split('T')[0];
+      
+      const clonedSlots: Record<string, PlannedCampaign[]> = {};
+      
+      for (const [timeSlot, campaigns] of Object.entries(sourceDateSlots)) {
+        clonedSlots[timeSlot] = campaigns.map(campaign => ({
+          ...campaign,
+          id: `${campaign.segmentId}-${targetDateString}-${timeSlot}`
+        }));
+      }
+      
+      return {
+        ...state,
+        plannedCampaigns: {
+          ...state.plannedCampaigns,
+          [targetDateString]: clonedSlots
+        }
+      };
+    }
+    
+    case 'MOVE_SEGMENT': {
+      // Legacy support for backward compatibility
+      return state;
     }
     
     case 'ADD_ACTION':
@@ -264,7 +328,11 @@ function plannerReducer(state: PlannerState, action: PlannerAction): PlannerStat
 
 interface PlannerContextType {
   state: PlannerState;
-  moveSegment: (segmentId: string, fromSlot: string, toSlot: string) => void;
+  moveSegment: (segmentId: string, fromSlot: string, toSlot: string, date?: string) => void;
+  createSlot: (date: string, timeSlot: string, segmentId: string, templateId: string) => void;
+  removeSlot: (date: string, timeSlot: string, slotId: string) => void;
+  cloneSlot: (slotId: string, sourceDate: string, targetDate: string) => void;
+  duplicateDay: (date: string, offset: number, untilDate?: string) => void;
   undo: () => void;
   redo: () => void;
   updateImpact: (impact: RealtimeImpact) => void;
@@ -289,16 +357,19 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   const calculateTotalRevenue = useCallback(() => {
     return Object.values(state.plannedCampaigns)
+      .flatMap(dateSlots => Object.values(dateSlots))
       .flat()
       .reduce((sum, campaign) => sum + campaign.estimatedRevenue, 0);
   }, [state.plannedCampaigns]);
 
   const checkFrequencyViolations = useCallback(() => {
     const violations: string[] = [];
-    Object.entries(state.plannedCampaigns).forEach(([timeSlot, campaigns]) => {
-      if (campaigns.length > state.frequencyCap) {
-        violations.push(`${timeSlot}: ${campaigns.length}/${state.frequencyCap} campanhas`);
-      }
+    Object.entries(state.plannedCampaigns).forEach(([date, dateSlots]) => {
+      Object.entries(dateSlots).forEach(([timeSlot, campaigns]) => {
+        if (campaigns.length > state.frequencyCap) {
+          violations.push(`${date} ${timeSlot}: ${campaigns.length}/${state.frequencyCap} campanhas`);
+        }
+      });
     });
     return violations;
   }, [state.plannedCampaigns, state.frequencyCap]);
@@ -343,33 +414,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
-  const moveSegment = useCallback((segmentId: string, fromSlot: string, toSlot: string) => {
-    dispatch({ type: 'MOVE_SEGMENT', payload: { segmentId, fromSlot, toSlot } });
-    
-    // Calculate impact
-    const revenueChange = Math.random() * 500 - 250; // Mock calculation
-    const newImpact: RealtimeImpact = {
-      revenueChange,
-      overlapRisk: Math.random() * 0.5,
-      frequencyCapViolation: checkFrequencyViolations().length > 0,
-      deliverabilityScore: 85 + Math.random() * 10,
-      opportunities: revenueChange > 0 ? [`+R$ ${Math.abs(revenueChange).toFixed(0)} por otimização de horário`] : [],
-      risks: revenueChange < 0 ? [`-R$ ${Math.abs(revenueChange).toFixed(0)} por horário sub-ótimo`] : []
-    };
-    
-    updateImpact(newImpact);
-    
-    // Add to history
-    const action: ActionHistory = {
-      id: `action-${Date.now()}`,
-      action: `Moveu ${segmentId} de ${fromSlot} para ${toSlot}`,
-      description: `Campanha reagendada com impacto de R$ ${revenueChange.toFixed(0)}`,
-      timestamp: new Date(),
-      impact: newImpact
-    };
-    
-    dispatch({ type: 'ADD_ACTION', payload: action });
-  }, [checkFrequencyViolations, updateImpact]);
+  const moveSegment = useCallback((segmentId: string, fromSlot: string, toSlot: string, date?: string) => {
+    // Legacy function - kept for backward compatibility but not actively used in new CalendarView
+    console.log('[PlannerContext] Legacy moveSegment called:', { segmentId, fromSlot, toSlot, date });
+  }, []);
 
   const undo = useCallback(() => {
     dispatch({ type: 'UNDO' });
@@ -444,6 +492,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const calculateProgressToGoal = useCallback(() => {
     // Calculate current clicks based on planned campaigns
     const currentClicks = Object.values(state.plannedCampaigns)
+      .flatMap(dateSlots => Object.values(dateSlots))
       .flat()
       .reduce((sum, campaign) => sum + (campaign.size * campaign.ctr), 0);
     
@@ -474,9 +523,57 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [undo, redo]);
 
+  // New functions for CalendarView
+  const createSlot = useCallback((date: string, timeSlot: string, segmentId: string, templateId: string) => {
+    dispatch({ type: 'CREATE_SLOT', payload: { date, timeSlot, segmentId, templateId } });
+    
+    toast({
+      title: "Campanha Agendada",
+      description: `Campanha criada para ${date} às ${timeSlot}`,
+      duration: 2000
+    });
+  }, [toast]);
+  
+  const removeSlot = useCallback((date: string, timeSlot: string, slotId: string) => {
+    dispatch({ type: 'REMOVE_SLOT', payload: { date, timeSlot, slotId } });
+    
+    toast({
+      title: "Campanha Removida",
+      description: "Campanha foi removida do calendário",
+      duration: 2000
+    });
+  }, [toast]);
+  
+  const cloneSlot = useCallback((slotId: string, sourceDate: string, targetDate: string) => {
+    dispatch({ type: 'CLONE_SLOT', payload: { slotId, sourceDate, targetDate } });
+    
+    toast({
+      title: "Campanha Clonada",
+      description: `Campanha duplicada para ${targetDate}`,
+      duration: 2000
+    });
+  }, [toast]);
+  
+  const duplicateDay = useCallback((date: string, offset: number, untilDate?: string) => {
+    dispatch({ type: 'DUPLICATE_DAY', payload: { date, offset, untilDate } });
+    
+    const targetDate = new Date(date);
+    targetDate.setDate(targetDate.getDate() + offset);
+    
+    toast({
+      title: "Dia Duplicado",
+      description: `Campanhas duplicadas para ${targetDate.toLocaleDateString()}`,
+      duration: 2000
+    });
+  }, [toast]);
+
   const value: PlannerContextType = {
     state,
     moveSegment,
+    createSlot,
+    removeSlot,
+    cloneSlot,
+    duplicateDay,
     undo,
     redo,
     updateImpact,

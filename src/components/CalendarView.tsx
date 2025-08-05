@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, TrendingUp, Users, Zap, AlertTriangle, CheckCircle, Menu, Settings } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Clock, TrendingUp, Users, Zap, AlertTriangle, CheckCircle, Menu, Settings, Plus, MoreHorizontal, Copy, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { usePlanner, CampaignSegment, PlannedCampaign } from '@/contexts/PlannerContext';
 import { usePlannerDefaults } from '@/hooks/usePlannerDefaults';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { SlotWizard } from './SlotWizard';
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, addWeeks, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -26,9 +27,12 @@ const COOL_DOWN_OPTIONS = Array.from({ length: 14 }, (_, i) => i + 1);
 
 interface SlotCardProps {
   campaign: PlannedCampaign;
-  index: number;
+  date: string;
   timeSlot: string;
   violations?: Array<{ type: string; message: string; severity: 'high' | 'medium' | 'low' }>;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
 }
 
 interface CalendarViewProps {
@@ -36,7 +40,7 @@ interface CalendarViewProps {
 }
 
 // Memoized SlotCard for performance
-const SlotCard = React.memo<SlotCardProps>(({ campaign, index, timeSlot, violations = [] }) => {
+const SlotCard = React.memo<SlotCardProps>(({ campaign, date, timeSlot, violations = [], onEdit, onDuplicate, onRemove }) => {
   const { getOptimalTime } = usePlanner();
   console.log('[Planner/CalendarView] Rendering SlotCard for:', campaign.name);
   
@@ -57,130 +61,149 @@ const SlotCard = React.memo<SlotCardProps>(({ campaign, index, timeSlot, violati
   };
   
   return (
-    <Draggable draggableId={`${campaign.segmentId}@${timeSlot}`} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`mb-2 group ${snapshot.isDragging ? 'rotate-1 scale-105' : ''} transition-all duration-200`}
-        >
-          <Card className={`
-            text-xs cursor-move relative overflow-hidden
-            ${snapshot.isDragging ? 'ring-2 ring-primary shadow-xl z-50' : ''}
-            ${getViolationStyling()}
-            ${isOptimalTime ? 'border-success border-l-4' : ''}
-            hover:shadow-md transition-all
-          `}>
-            {/* Status Indicators */}
-            <div className="absolute top-1 right-1 flex gap-1">
-              {isOptimalTime && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Zap className="h-3 w-3 text-success" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Horário ótimo (+{optimalTime.lift}%)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
-              {highPriorityViolation && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <AlertTriangle className="h-3 w-3 text-destructive" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-destructive font-medium">CRÍTICO: {highPriorityViolation.message}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
-              {!highPriorityViolation && mediumPriorityViolation && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <AlertTriangle className="h-3 w-3 text-warning" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-warning font-medium">ATENÇÃO: {mediumPriorityViolation.message}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
-              {!highPriorityViolation && !mediumPriorityViolation && lowPriorityViolation && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <AlertTriangle className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-muted-foreground">INFO: {lowPriorityViolation.message}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
-              {!hasViolations && !isOptimalTime && (
-                <CheckCircle className="h-3 w-3 text-muted-foreground" />
-              )}
+    <div className="mb-2 group transition-all duration-200">
+      <Card className={`
+        text-xs relative overflow-hidden
+        ${getViolationStyling()}
+        ${isOptimalTime ? 'border-success border-l-4' : ''}
+        hover:shadow-md transition-all
+      `}>
+        {/* Status Indicators and Actions */}
+        <div className="absolute top-1 right-1 flex gap-1 items-center">
+          {/* Status Icons */}
+          {isOptimalTime && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Zap className="h-3 w-3 text-success" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Horário ótimo (+{optimalTime.lift}%)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {highPriorityViolation && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-destructive font-medium">CRÍTICO: {highPriorityViolation.message}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {!highPriorityViolation && mediumPriorityViolation && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertTriangle className="h-3 w-3 text-warning" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-warning font-medium">ATENÇÃO: {mediumPriorityViolation.message}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {!highPriorityViolation && !mediumPriorityViolation && lowPriorityViolation && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-muted-foreground">INFO: {lowPriorityViolation.message}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {!hasViolations && !isOptimalTime && (
+            <CheckCircle className="h-3 w-3 text-muted-foreground" />
+          )}
+
+          {/* Actions Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicar para Próximo Dia
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onRemove} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remover Slot
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
+        <CardContent className="p-3 pt-5">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between">
+              <h4 className="font-medium text-xs leading-tight pr-8">{campaign.name}</h4>
             </div>
             
-            <CardContent className="p-3 pt-5">
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <h4 className="font-medium text-xs leading-tight">{campaign.name}</h4>
-                </div>
-                
-                <div className="flex gap-1 flex-wrap">
-                  <Badge variant="outline" className="text-xs px-1 py-0">
-                    {campaign.campaignType}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs px-1 py-0">
-                    RFM: {campaign.rfm}
-                  </Badge>
-                </div>
-                
-                {/* Metrics */}
-                <div className="grid grid-cols-2 gap-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Envios:</span>
-                    <span className="font-medium">{(campaign.size / 1000).toFixed(0)}k</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">CTR:</span>
-                    <span className="font-medium">{(campaign.ctr * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-                
-                {/* Revenue */}
-                <div className="pt-1 border-t border-border">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Receita:</span>
-                    <span className="font-bold text-primary text-xs">
-                      R$ {campaign.estimatedRevenue.toFixed(0)}
-                    </span>
-                  </div>
-                  
-                  {/* Opportunity indicator */}
-                  {!isOptimalTime && optimalTime.confidence > 0.7 && (
-                    <div className="text-xs text-warning mt-1 flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      +R$ {(campaign.estimatedRevenue * optimalTime.lift / 100).toFixed(0)} no horário ótimo
-                    </div>
-                  )}
-                </div>
+            <div className="flex gap-1 flex-wrap">
+              <Badge variant="outline" className="text-xs px-1 py-0">
+                {campaign.campaignType}
+              </Badge>
+              <Badge variant="secondary" className="text-xs px-1 py-0">
+                RFM: {campaign.rfm}
+              </Badge>
+            </div>
+            
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Envios:</span>
+                <span className="font-medium">{(campaign.size / 1000).toFixed(0)}k</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </Draggable>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">CTR:</span>
+                <span className="font-medium">{(campaign.ctr * 100).toFixed(1)}%</span>
+              </div>
+            </div>
+            
+            {/* Revenue */}
+            <div className="pt-1 border-t border-border">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Receita:</span>
+                <span className="font-bold text-primary text-xs">
+                  R$ {campaign.estimatedRevenue.toFixed(0)}
+                </span>
+              </div>
+              
+              {/* Opportunity indicator */}
+              {!isOptimalTime && optimalTime.confidence > 0.7 && (
+                <div className="text-xs text-warning mt-1 flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +R$ {(campaign.estimatedRevenue * optimalTime.lift / 100).toFixed(0)} no horário ótimo
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for better performance
@@ -194,23 +217,25 @@ const SlotCard = React.memo<SlotCardProps>(({ campaign, index, timeSlot, violati
 export function CalendarView({ segments }: CalendarViewProps) {
   const { 
     state, 
-    moveSegment, 
     setDailyClickGoal, 
     setCoolDown,
     setViewType, 
     setCurrentPeriod, 
-    calculateProgressToGoal 
+    calculateProgressToGoal,
+    removeSlot,
+    cloneSlot,
+    duplicateDay
   } = usePlanner();
   
   const { defaults, validateTimeSlot, isLoading: defaultsLoading } = usePlannerDefaults();
   const isMobile = useIsMobile();
   
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [showOverlapHeatmap, setShowOverlapHeatmap] = useState(false);
   const [localClickGoal, setLocalClickGoal] = useState(state.dailyClickGoal);
   const [localFrequencyCap, setLocalFrequencyCap] = useState(state.frequencyCap);
   const [localCoolDown, setLocalCoolDown] = useState(state.coolDown);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: string; timeSlot: string } | null>(null);
 
   console.log('[Planner/CalendarView] Rendering with view type:', state.viewType);
 
@@ -230,24 +255,25 @@ export function CalendarView({ segments }: CalendarViewProps) {
   
   // Memoized timeSlots calculation to avoid re-renders
   const timeSlots = useMemo(() => {
-    const campaignsJson = JSON.stringify(state.plannedCampaigns);
     console.log('[Planner/CalendarView] Recalculating timeSlots');
     
     if (state.viewType === 'week') {
       const weekStart = startOfWeek(state.currentPeriod, { weekStartsOn: 1 });
       const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
       
-      return days.flatMap(day => 
-        state.anchorTimes.map(time => ({
-          id: `${format(day, 'yyyy-MM-dd')}-${time}`,
+      return days.flatMap(day => {
+        const dateString = format(day, 'yyyy-MM-dd');
+        return state.anchorTimes.map(time => ({
+          id: `${dateString}-${time}`,
           date: day,
+          dateString,
           time,
           display: `${format(day, 'EEE dd/MM', { locale: ptBR })} ${time}`,
           dayDisplay: format(day, 'EEE', { locale: ptBR }),
           dateDisplay: format(day, 'dd/MM'),
-          campaigns: state.plannedCampaigns[time] || []
-        }))
-      );
+          campaigns: state.plannedCampaigns[dateString]?.[time] || []
+        }));
+      });
     } else {
       // Monthly view - simplified
       const monthStart = startOfMonth(state.currentPeriod);
@@ -260,17 +286,25 @@ export function CalendarView({ segments }: CalendarViewProps) {
         currentDay = addDays(currentDay, 1);
       }
       
-      return days.map(day => ({
-        id: format(day, 'yyyy-MM-dd'),
-        date: day,
-        time: 'all-day',
-        display: format(day, 'dd'),
-        dayDisplay: format(day, 'EEE', { locale: ptBR }),
-        dateDisplay: format(day, 'dd'),
-        campaigns: Object.values(state.plannedCampaigns).flat()
-      }));
+      return days.map(day => {
+        const dateString = format(day, 'yyyy-MM-dd');
+        const allCampaigns = state.plannedCampaigns[dateString] 
+          ? Object.values(state.plannedCampaigns[dateString]).flat()
+          : [];
+          
+        return {
+          id: dateString,
+          date: day,
+          dateString,
+          time: 'all-day',
+          display: format(day, 'dd'),
+          dayDisplay: format(day, 'EEE', { locale: ptBR }),
+          dateDisplay: format(day, 'dd'),
+          campaigns: allCampaigns
+        };
+      });
     }
-  }, [state.viewType, state.currentPeriod, state.anchorTimes, JSON.stringify(state.plannedCampaigns)]);
+  }, [state.viewType, state.currentPeriod, state.anchorTimes, state.plannedCampaigns]);
 
   // Week/Month navigation
   const navigatePeriod = useCallback((direction: 'prev' | 'next') => {
@@ -286,30 +320,6 @@ export function CalendarView({ segments }: CalendarViewProps) {
     setCurrentPeriod(newPeriod);
     console.log('[Planner/CalendarView] Navigated to period:', newPeriod);
   }, [state.viewType, state.currentPeriod, setCurrentPeriod]);
-
-  // Drag and drop handlers
-  const onDragStart = useCallback((result: any) => {
-    setDraggedItem(result.draggableId);
-    console.log('[Planner/CalendarView] Drag started:', result.draggableId);
-  }, []);
-
-  const onDragEnd = useCallback((result: DropResult) => {
-    setDraggedItem(null);
-    
-    const { source, destination } = result;
-    if (!destination) return;
-
-    const sourceId = source.droppableId;
-    const destId = destination.droppableId;
-    
-    if (sourceId === destId) return;
-
-    // Extract segment ID from draggable ID (format: segmentId@timeSlot)
-    const segmentId = result.draggableId.split('@')[0];
-    
-    console.log('[Planner/CalendarView] Moving segment:', { segmentId, from: sourceId, to: destId });
-    moveSegment(segmentId, sourceId, destId);
-  }, [moveSegment]);
 
   // Handle click goal change with useCallback
   const handleClickGoalChange = useCallback((value: string) => {
@@ -328,6 +338,30 @@ export function CalendarView({ segments }: CalendarViewProps) {
     setCoolDown(days);
     console.log('[Planner/CalendarView] Cool-down updated to:', days);
   }, [setCoolDown]);
+
+  // Slot actions
+  const handleSlotClick = useCallback((date: string, timeSlot: string) => {
+    setSelectedSlot({ date, timeSlot });
+    setWizardOpen(true);
+  }, []);
+
+  const handleSlotEdit = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
+    // TODO: Implement edit functionality
+    console.log('[CalendarView] Edit slot:', campaign.id, date, timeSlot);
+  }, []);
+
+  const handleSlotDuplicate = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
+    const currentDate = new Date(date);
+    const nextDate = new Date(currentDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateString = format(nextDate, 'yyyy-MM-dd');
+    
+    cloneSlot(campaign.id, date, nextDateString);
+  }, [cloneSlot]);
+
+  const handleSlotRemove = useCallback((campaign: PlannedCampaign, date: string, timeSlot: string) => {
+    removeSlot(date, timeSlot, campaign.id);
+  }, [removeSlot]);
 
   // Render performance tracking
   useEffect(() => {
@@ -435,15 +469,24 @@ export function CalendarView({ segments }: CalendarViewProps) {
               <SettingsSheet />
               
               {/* View Toggle */}
-              <Select value={state.viewType} onValueChange={(value: 'week' | 'month') => setViewType(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="week">Semana</SelectItem>
-                  <SelectItem value="month">Mês</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center border rounded-lg p-1">
+                <Button
+                  variant={state.viewType === 'week' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewType('week')}
+                  className="h-8"
+                >
+                  Semana
+                </Button>
+                <Button
+                  variant={state.viewType === 'month' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewType('month')}
+                  className="h-8"
+                >
+                  Mês
+                </Button>
+              </div>
               
               {/* Navigation */}
               <div className="flex items-center gap-1">
@@ -454,287 +497,143 @@ export function CalendarView({ segments }: CalendarViewProps) {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              
-              {/* Overlap Toggle */}
-              <Button 
-                variant={showOverlapHeatmap ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setShowOverlapHeatmap(!showOverlapHeatmap)}
-              >
-                Sobreposição
-              </Button>
-            </div>
-          </div>
-          
-          {/* Click Goal and Progress */}
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 pt-4 border-t">
-            <div className="flex items-center gap-3">
-              <Label htmlFor="click-goal" className="text-sm font-medium">Meta de Cliques:</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="click-goal"
-                  type="number"
-                  value={localClickGoal}
-                  onChange={(e) => handleClickGoalChange(e.target.value)}
-                  className="w-24 h-8"
-                />
-                <Button size="sm" onClick={handleClickGoalSubmit}>
-                  Aplicar
-                </Button>
-              </div>
-            </div>
-            
-            <div className="flex-1">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">Progresso do Dia</span>
-                <span className="text-sm text-muted-foreground">
-                  {progress.current.toLocaleString()} / {progress.target.toLocaleString()} cliques
-                </span>
-              </div>
-              <Progress value={progress.percentage} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                {progress.percentage}% da meta atingida
-              </p>
             </div>
           </div>
         </CardHeader>
       </Card>
 
       {/* Calendar Grid */}
-      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Available Segments Sidebar - Hidden on mobile */}
-          {!isMobile && (
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Segmentos Disponíveis
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {segments.length} campanhas prontas
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Droppable droppableId="available">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`min-h-[200px] space-y-2 ${
-                        snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg border-2 border-dashed border-primary' : ''
-                      }`}
-                    >
-                      {segments.map((segment, index) => (
-                        <SlotCard
-                          key={segment.id}
-                          campaign={{
-                            ...segment,
-                            id: segment.id,
-                            segmentId: segment.id,
-                            estimatedRevenue: segment.size * segment.ctr * segment.erpm
-                          }}
-                          index={index}
-                          timeSlot="available"
-                        />
-                      ))}
-                      {provided.placeholder}
-                      {segments.length === 0 && (
-                        <div className="text-center text-muted-foreground text-sm py-8">
-                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          Nenhum segmento disponível
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Droppable>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Mobile Sidebar */}
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="w-80">
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Segmentos Disponíveis
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6">
-                <Droppable droppableId="available">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`min-h-[200px] space-y-2 ${
-                        snapshot.isDraggingOver ? 'bg-muted/50 rounded-lg border-2 border-dashed border-primary' : ''
-                      }`}
-                    >
-                      {segments.map((segment, index) => (
-                        <SlotCard
-                          key={segment.id}
-                          campaign={{
-                            ...segment,
-                            id: segment.id,
-                            segmentId: segment.id,
-                            estimatedRevenue: segment.size * segment.ctr * segment.erpm
-                          }}
-                          index={index}
-                          timeSlot="available"
-                        />
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">Calendário de Campanhas</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Clique nas células para adicionar campanhas
+              </p>
+            </div>
+            
+            {/* Progress to Goal */}
+            <div className="text-right space-y-2">
+              <div className="text-sm font-medium">
+                Meta Diária: {progress.current.toLocaleString()} / {progress.target.toLocaleString()} cliques
               </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* Calendar Main Area */}
-          <div className={isMobile ? "col-span-1" : "lg:col-span-3"}>
+              <Progress value={progress.percentage} className="w-48" />
+              <div className="text-xs text-muted-foreground">
+                {progress.percentage}% da meta alcançada
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          {/* Calendar */}
+          <div className="space-y-4">
             {state.viewType === 'week' ? (
-              /* Weekly View */
-              <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
-                {Array.from({ length: 7 }, (_, dayIndex) => {
-                  const weekStart = startOfWeek(state.currentPeriod, { weekStartsOn: 1 });
-                  const currentDay = addDays(weekStart, dayIndex);
-                  
+              // Week View
+              <div className="grid grid-cols-8 gap-2">
+                {/* Header Row */}
+                <div className="font-medium text-sm p-2">Horário</div>
+                {Array.from({ length: 7 }, (_, i) => {
+                  const day = addDays(startOfWeek(state.currentPeriod, { weekStartsOn: 1 }), i);
                   return (
-                    <div key={dayIndex} className="space-y-3">
-                      {/* Day Header */}
-                      <div className="text-center p-2 bg-muted/30 rounded-lg">
-                        <div className="font-medium text-sm">
-                          {format(currentDay, 'EEE', { locale: ptBR })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(currentDay, 'dd/MM')}
-                        </div>
-                      </div>
-                      
-                      {/* Time Slots for this day */}
-                      {state.anchorTimes.map(timeSlot => {
-                        const campaigns = state.plannedCampaigns[timeSlot] || [];
-                        const violations = validateTimeSlot(timeSlot, campaigns.length);
-                        
-                        return (
-                          <Card key={timeSlot} className="min-h-[120px]">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3 text-primary" />
-                                  <span className="text-xs font-medium">{timeSlot}</span>
-                                </div>
-                                {campaigns.length > 0 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {campaigns.length}
-                                  </Badge>
-                                )}
-                              </div>
-                              {campaigns.length > 0 && (
-                                <div className="text-xs text-primary">
-                                  R$ {campaigns.reduce((sum, c) => sum + c.estimatedRevenue, 0).toFixed(0)}
-                                </div>
-                              )}
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <Droppable droppableId={timeSlot}>
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.droppableProps}
-                                    className={`min-h-[60px] ${
-                                      snapshot.isDraggingOver 
-                                        ? 'bg-primary/10 rounded-lg border-2 border-dashed border-primary' 
-                                        : ''
-                                    }`}
-                                  >
-                                    {campaigns.map((campaign, index) => (
-                                      <SlotCard
-                                        key={campaign.id}
-                                        campaign={campaign}
-                                        index={index}
-                                        timeSlot={timeSlot}
-                                        violations={violations}
-                                      />
-                                    ))}
-                                    {provided.placeholder}
-                                    {campaigns.length === 0 && !snapshot.isDraggingOver && (
-                                      <div className="text-center text-muted-foreground text-xs py-4">
-                                        <Clock className="h-4 w-4 mx-auto mb-1 opacity-50" />
-                                        Arraste campanhas aqui
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </Droppable>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
+                    <div key={i} className="font-medium text-sm p-2 text-center">
+                      <div>{DAYS_PT[i]}</div>
+                      <div className="text-xs text-muted-foreground">{format(day, 'dd/MM')}</div>
                     </div>
                   );
                 })}
+                
+                {/* Time Slots */}
+                {state.anchorTimes.map(time => (
+                  <React.Fragment key={time}>
+                    <div className="font-medium text-sm p-2 border-r border-border">
+                      {time}
+                    </div>
+                    {Array.from({ length: 7 }, (_, dayIndex) => {
+                      const day = addDays(startOfWeek(state.currentPeriod, { weekStartsOn: 1 }), dayIndex);
+                      const dateString = format(day, 'yyyy-MM-dd');
+                      const campaigns = state.plannedCampaigns[dateString]?.[time] || [];
+                      
+                      return (
+                        <div
+                          key={`${dateString}-${time}`}
+                          className="min-h-24 p-2 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handleSlotClick(dateString, time)}
+                        >
+                          {campaigns.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                              <Plus className="h-4 w-4" />
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              {campaigns.map((campaign) => (
+                                <SlotCard
+                                  key={campaign.id}
+                                  campaign={campaign}
+                                  date={dateString}
+                                  timeSlot={time}
+                                  onEdit={() => handleSlotEdit(campaign, dateString, time)}
+                                  onDuplicate={() => handleSlotDuplicate(campaign, dateString, time)}
+                                  onRemove={() => handleSlotRemove(campaign, dateString, time)}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
             ) : (
-              /* Monthly View */
+              // Month View
               <div className="grid grid-cols-7 gap-2">
-                {/* Days of week header */}
+                {/* Headers */}
                 {DAYS_PT.map(day => (
-                  <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
+                  <div key={day} className="font-medium text-sm p-2 text-center border-b border-border">
                     {day}
                   </div>
                 ))}
                 
-                {/* Calendar days */}
-                {timeSlots.map(slot => (
-                  <Card key={slot.id} className="min-h-[100px] p-2">
-                    <div className="text-sm font-medium mb-1">{slot.display}</div>
-                    <div className="space-y-1">
-                      {state.anchorTimes.map(time => {
-                        const campaigns = state.plannedCampaigns[time] || [];
-                        const dayTotal = campaigns.length;
-                        
-                        if (dayTotal === 0) return null;
-                        
-                        return (
-                          <div key={time} className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-primary rounded-full"></div>
-                            <span className="text-xs">{time}: {dayTotal}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
+                {/* Days */}
+                {timeSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="min-h-24 p-2 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => handleSlotClick(slot.dateString, '09:00')} // Default to 9AM for month view
+                  >
+                    <div className="text-sm font-medium mb-1">{slot.dateDisplay}</div>
+                    {slot.campaigns.length === 0 ? (
+                      <div className="flex items-center justify-center h-8 text-muted-foreground">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">
+                          {slot.campaigns.length} campanha{slot.campaigns.length !== 1 ? 's' : ''}
+                        </div>
+                        <div className="text-xs font-medium text-primary">
+                          R$ {slot.campaigns.reduce((sum, c) => sum + c.estimatedRevenue, 0).toFixed(0)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      </DragDropContext>
-
-      {/* Footer Actions */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-muted-foreground">
-              Última atualização: {format(new Date(), 'HH:mm:ss')}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                Salvar Rascunho
-              </Button>
-              <Button variant="outline" size="sm">
-                Exportar CSV
-              </Button>
-              <Button size="sm">
-                Lançar Campanhas
-              </Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
+
+      {/* Slot Wizard Modal */}
+      <SlotWizard
+        isOpen={wizardOpen}
+        onOpenChange={setWizardOpen}
+        date={selectedSlot?.date || ''}
+        timeSlot={selectedSlot?.timeSlot || '09:00'}
+        segments={segments}
+      />
     </div>
   );
 }
