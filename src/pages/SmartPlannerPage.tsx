@@ -7,8 +7,6 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlannerProvider, usePlanner } from '@/contexts/PlannerContext';
 import { RealTimeImpactPanel } from '@/components/RealTimeImpactPanel';
-import { SmartDragDrop } from '@/components/SmartDragDrop';
-import { CalendarView } from '@/components/CalendarView';
 import { PlannerGridView } from '@/components/PlannerGridView';
 import { DeliverabilityShield } from '@/components/DeliverabilityShield';
 import { useVoiceCommands } from '@/hooks/useVoiceCommands';

@@ -1,13 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { usePlanner, CampaignSegment, PlannedCampaign } from '@/contexts/PlannerContext';
+import { usePlannerDragDrop } from '@/hooks/usePlannerDragDrop';
+import { usePlannerActions } from '@/hooks/usePlannerActions';
 import { SlotWizard } from './SlotWizard';
 import { OverlapModal } from './OverlapModal';
 import { 
@@ -273,9 +272,22 @@ function CampaignCard({
 }
 
 export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
-  const { state, createSlot, removeSlot, cloneSlot, undo, redo, canUndo, canRedo } = usePlanner();
+  const { state } = usePlanner();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  
+  // Custom hooks
+  const { draggedItem, handleDragStart, handleDragEnd } = usePlannerDragDrop(segments);
+  const { 
+    clipboardRef, 
+    copyConfiguration, 
+    pasteConfiguration, 
+    handleDeleteCampaign, 
+    handleUndo, 
+    handleRedo, 
+    canUndo, 
+    canRedo 
+  } = usePlannerActions();
   
   // State management
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -285,10 +297,6 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
   const [showOverlapModal, setShowOverlapModal] = useState(false);
   const [overlapData, setOverlapData] = useState<any>(null);
   const [editingSlot, setEditingSlot] = useState<{ date: string; timeSlot: string; campaignId: string } | null>(null);
-  const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
-  
-  // Clipboard for copy/paste
-  const clipboardRef = useRef<PlannedCampaign | null>(null);
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -327,78 +335,16 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
-        undo();
-        toast({ title: "Alteração desfeita", duration: 2000 });
+        handleUndo();
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
         e.preventDefault();
-        redo();
-        toast({ title: "Alteração refeita", duration: 2000 });
+        handleRedo();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, toast]);
-
-  // Copy/Paste functions
-  const copyConfiguration = (campaign: PlannedCampaign) => {
-    clipboardRef.current = { ...campaign };
-    toast({ title: "Configuração copiada", duration: 2000 });
-  };
-
-  const pasteConfiguration = (targetDate: string, targetHour: string) => {
-    if (!clipboardRef.current) {
-      toast({ title: "Nenhuma configuração copiada", variant: "destructive", duration: 2000 });
-      return;
-    }
-
-    // Clone with new unique ID
-    const newId = crypto.randomUUID();
-    createSlot(targetDate, targetHour, clipboardRef.current.segmentId, clipboardRef.current.templateId);
-    toast({ title: "Configuração colada", duration: 2000 });
-  };
-
-  // Drag handlers
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    const segment = segments.find(s => s.id === active.id);
-    
-    if (segment) {
-      setDraggedItem({ id: segment.id, type: 'segment', data: segment });
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setDraggedItem(null);
-
-    if (!over) return;
-
-    const overId = over.id as string;
-    const [date, timeSlot] = overId.split('|');
-    
-    if (!date || !timeSlot) return;
-
-    // Find the segment being dragged
-    const segment = segments.find(s => s.id === active.id);
-    if (!segment) return;
-
-    // Check for existing campaign in slot
-    const existingCampaigns = state.plannedCampaigns[date]?.[timeSlot] || [];
-    if (existingCampaigns.length > 0) {
-      toast({
-        title: "Slot já ocupado",
-        description: "Este horário já possui uma campanha agendada.",
-        variant: "destructive",
-        duration: 3000
-      });
-      return;
-    }
-
-    // Create new slot (template selection will be handled by the wizard)
-    setSelectedSlot({ date, timeSlot });
-    setShowWizard(true);
-  };
+  }, [handleUndo, handleRedo]);
 
   // Slot actions
   const handleCreateSlot = (date: string, timeSlot: string) => {
@@ -411,18 +357,8 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
     setShowWizard(true);
   };
 
-  const handleDeleteCampaign = (date: string, timeSlot: string, campaignId: string) => {
-    removeSlot(date, timeSlot, campaignId);
-    toast({ title: "Campanha removida", duration: 2000 });
-  };
-
   const handleCopyCampaign = (campaign: PlannedCampaign) => {
     copyConfiguration(campaign);
-  };
-
-  const handleCloneCampaign = (date: string, timeSlot: string, campaignId: string) => {
-    cloneSlot(date, timeSlot, campaignId);
-    toast({ title: "Campanha clonada", duration: 2000 });
   };
 
   return (
@@ -442,7 +378,7 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={undo}
+                  onClick={handleUndo}
                   disabled={!canUndo}
                   className="h-8 w-8 p-0"
                   title="Desfazer (Ctrl+Z)"
@@ -452,7 +388,7 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={redo}
+                  onClick={handleRedo}
                   disabled={!canRedo}
                   className="h-8 w-8 p-0"
                   title="Refazer (Ctrl+Shift+Z)"
@@ -500,7 +436,10 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onDragEnd={(event) => handleDragEnd(event, (date, timeSlot) => {
+                  setSelectedSlot({ date, timeSlot });
+                  setShowWizard(true);
+                })}
               >
                 <SortableContext items={filteredSegments.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-2 max-h-96 overflow-y-auto" role="listbox">
@@ -533,7 +472,10 @@ export function PlannerGridView({ segments, timeSlots }: PlannerGridViewProps) {
                 sensors={sensors}
                 collisionDetection={pointerWithin}
                 onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onDragEnd={(event) => handleDragEnd(event, (date, timeSlot) => {
+                  setSelectedSlot({ date, timeSlot });
+                  setShowWizard(true);
+                })}
               >
                 <div className="overflow-x-auto">
                   <div className="min-w-[800px]">
