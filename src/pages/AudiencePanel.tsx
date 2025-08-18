@@ -10,7 +10,7 @@ import { BestTimeWidget } from "@/components/BestTimeWidget";
 import { BackupToggle } from "@/components/BackupToggle";
 import { SmartTagBuilder } from "@/components/SmartTagBuilder";
 import { EngagementMatrixWidget } from "@/components/EngagementMatrixWidget";
-import { SegmentBuilder } from "@/components/SegmentBuilder";
+import { VisualSegmentBuilder } from "@/components/VisualSegmentBuilder";
 import { segments, tags, lists, guardrailsData } from "@/mocks/demoData";
 import { Users, Tag, List, Calendar, TrendingUp, BarChart } from "lucide-react";
 
@@ -140,7 +140,7 @@ export function AudiencePanel() {
           bounceRate={guardrailsData.bounceRate}
           unsubscribeRate={guardrailsData.unsubscribeRate}
         />
-        <SegmentBuilder />
+        <VisualSegmentBuilder />
       </div>
     );
   }
