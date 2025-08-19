@@ -17,7 +17,11 @@ import {
   FileText,
   BookOpen,
   Database,
-  Target
+  Target,
+  Send,
+  Server,
+  Layers,
+  Clock
 } from "lucide-react"
 
 import {
@@ -53,6 +57,13 @@ const toolsItems = [
   { title: "Receitas", url: "/receitas", icon: BookOpen },
   { title: "Backfill", url: "/backfill", icon: Database },
   { title: "Análise de Engajamento", url: "/engagement-analysis", icon: BarChart3 },
+];
+
+const campaignItems = [
+  { title: "Monitor", url: "/campanhas/monitor", icon: Activity },
+  { title: "Provedores", url: "/campanhas/provedores", icon: Server },
+  { title: "Filas", url: "/campanhas/filas", icon: Layers },
+  { title: "Agendas", url: "/campanhas/agendas", icon: Clock },
 ];
 
 const reportItems = [
@@ -131,6 +142,24 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {toolsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Campanhas</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {campaignItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>

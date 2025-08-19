@@ -30,6 +30,10 @@ import Guardrails from "./pages/Guardrails";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import CampaignMonitor from "./pages/CampaignMonitor";
+import ProviderManagement from "./pages/ProviderManagement";
+import QueueStatus from "./pages/QueueStatus";
+import CampaignSchedules from "./pages/CampaignSchedules";
 
 
 const queryClient = new QueryClient();
@@ -69,6 +73,10 @@ const App = () => (
                   <Route path="/guardrails" element={<Guardrails />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/campanhas/monitor" element={<CampaignMonitor />} />
+                  <Route path="/campanhas/provedores" element={<ProviderManagement />} />
+                  <Route path="/campanhas/filas" element={<QueueStatus />} />
+                  <Route path="/campanhas/agendas" element={<CampaignSchedules />} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
