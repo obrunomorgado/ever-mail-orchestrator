@@ -59,7 +59,7 @@ const App = () => (
                   <Route path="/planner-new" element={<SmartPlannerPage />} />
                   <Route path="/audiencias/:tipo" element={<AudiencePanel />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />
-                  <Route path="/warmup" element={<WarmupWizard />} />
+                  <Route path="/warmup" element={<WarmUp />} />
                   <Route path="/automation" element={<AutomationCanvas />} />
                   <Route path="/cleaning" element={<ListCleaningPage />} />
                   <Route path="/macros" element={<MacrosPage />} />
