@@ -15,7 +15,7 @@ import Central from "./pages/Central";
 import { SmartPlannerPage } from "./pages/SmartPlannerPage";
 import { AudiencePanel } from "./pages/AudiencePanel";
 import { HeatMapPanel } from "./pages/HeatMapPanel";
-import { WarmupWizard } from "./pages/WarmupWizard";
+
 import { AutomationCanvas } from "./pages/AutomationCanvas";
 import { ListCleaningPage } from "./pages/ListCleaningPage";
 import { MacrosPage } from "./pages/MacrosPage";
