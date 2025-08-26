@@ -25,6 +25,7 @@ import { TriggerLibrary } from "@/components/automation/TriggerLibrary"
 import { ActionLibrary } from "@/components/automation/ActionLibrary"
 import { mockAutomationFlows, mockKPIs, mockHeatSegments } from "@/mocks/automationData"
 import { useAutomationValidation } from "@/hooks/useAutomationValidation"
+import { AutomationNode, AutomationConnection } from "@/types/automation"
 
 // React Flow Node Types
 const initialNodes: Node[] = [
@@ -91,14 +92,28 @@ export default function Automations() {
   }, []);
 
   const handleSaveFlow = () => {
-    validateFlow(nodes, edges.map(e => ({
+    // Convert React Flow nodes to AutomationNodes
+    const automationNodes: AutomationNode[] = nodes.map(node => ({
+      id: node.id,
+      type: (node.data.nodeType as AutomationNode['type']) || 'trigger',
+      position: node.position,
+      data: {
+        label: String(node.data.label || ''),
+        config: node.data.config || {},
+        kpis: node.data.kpis || undefined
+      }
+    }));
+
+    const automationConnections: AutomationConnection[] = edges.map(e => ({
       id: e.id,
-      sourceId: e.source,
-      targetId: e.target,
-      sourceHandle: e.sourceHandle,
-      targetHandle: e.targetHandle,
-      label: e.label
-    })));
+      sourceId: e.source!,
+      targetId: e.target!,
+      sourceHandle: e.sourceHandle || undefined,
+      targetHandle: e.targetHandle || undefined,
+      label: typeof e.label === 'string' ? e.label : undefined
+    }));
+
+    validateFlow(automationNodes, automationConnections);
     
     toast({
       title: "🎯 Fluxo Validado",
@@ -148,7 +163,7 @@ export default function Automations() {
           >
             <Controls position="top-left" />
             <MiniMap position="top-right" />
-            <Background variant="dots" gap={20} size={1} />
+            <Background variant={"dots" as any} gap={20} size={1} />
           </ReactFlow>
 
           {/* Validation Results */}
@@ -175,7 +190,7 @@ export default function Automations() {
                 <div className="space-y-3">
                   <div>
                     <Label>Nome</Label>
-                    <Input value={selectedNode.data.label} readOnly />
+                    <Input value={String(selectedNode.data.label || '')} readOnly />
                   </div>
                   <div>
                     <Label>Tipo</Label>
