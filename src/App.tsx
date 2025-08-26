@@ -63,7 +63,7 @@ const App = () => (
                   <Route path="/segments" element={<Segments />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />
                   <Route path="/warmup" element={<WarmUp />} />
-                  <Route path="/automation" element={<AutomationCanvas />} />
+                  <Route path="/automation" element={<Automations />} />
                   <Route path="/cleaning" element={<ListCleaningPage />} />
                   <Route path="/macros" element={<MacrosPage />} />
                   <Route path="/receitas" element={<RecipesPage />} />
