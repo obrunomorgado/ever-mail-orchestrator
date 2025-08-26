@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Central from "./pages/Central";
 import { SmartPlannerPage } from "./pages/SmartPlannerPage";
 import { AudiencePanel } from "./pages/AudiencePanel";
+import { Segments } from "./pages/Segments";
 import { HeatMapPanel } from "./pages/HeatMapPanel";
 
 import { AutomationCanvas } from "./pages/AutomationCanvas";
@@ -58,6 +59,8 @@ const App = () => (
                   <Route path="/central" element={<Central />} />
                   <Route path="/planner-new" element={<SmartPlannerPage />} />
                   <Route path="/audiencias/:tipo" element={<AudiencePanel />} />
+                  <Route path="/audiencias/segmentos" element={<Segments />} />
+                  <Route path="/segments" element={<Segments />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />
                   <Route path="/warmup" element={<WarmUp />} />
                   <Route path="/automation" element={<AutomationCanvas />} />
