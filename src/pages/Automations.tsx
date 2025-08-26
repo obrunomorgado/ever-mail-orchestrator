@@ -92,17 +92,17 @@ export default function Automations() {
   }, []);
 
   const handleSaveFlow = () => {
-    // Convert React Flow nodes to AutomationNodes
-    const automationNodes: AutomationNode[] = nodes.map(node => ({
+    // Convert React Flow nodes to AutomationNodes with type assertion
+    const automationNodes = nodes.map(node => ({
       id: node.id,
       type: (node.data.nodeType as AutomationNode['type']) || 'trigger',
       position: node.position,
       data: {
         label: String(node.data.label || ''),
         config: node.data.config || {},
-        kpis: node.data.kpis || undefined
+        kpis: node.data.kpis && Object.keys(node.data.kpis).length > 0 ? node.data.kpis : undefined
       }
-    }));
+    })) as AutomationNode[];
 
     const automationConnections: AutomationConnection[] = edges.map(e => ({
       id: e.id,
