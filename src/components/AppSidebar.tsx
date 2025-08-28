@@ -49,7 +49,7 @@ const audienceItems = [
 ];
 
 const toolsItems = [
-  { title: "Planner", url: "/planner-new", icon: Calendar },
+  { title: "Agenda de Disparos", url: "/planner-new", icon: Calendar },
   { title: "Warm-up", url: "/warmup", icon: Thermometer },
   { title: "Automação", url: "/automation", icon: GitBranch },
   { title: "Limpeza", url: "/cleaning", icon: Trash2 },
