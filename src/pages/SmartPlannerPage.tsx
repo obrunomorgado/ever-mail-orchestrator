@@ -1,263 +1,222 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, RefreshCw, Settings, Clock, Send } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Copy, ArrowRight, Save, Send, Calendar } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { TimelineGrid } from '@/components/scheduler/TimelineGrid';
-import { QuickConfigSidebar } from '@/components/scheduler/QuickConfigSidebar';
-import { ValidationFooter } from '@/components/scheduler/ValidationFooter';
-import { ScheduledDispatch, ValidationResult } from '@/types/scheduler';
-import { schedulerMockData } from '@/mocks/schedulerData';
+import { TacticalGrid } from '@/components/tactical/TacticalGrid';
+import { TacticalSidebar } from '@/components/tactical/TacticalSidebar';
+import { TacticalMetricsSummary } from '@/components/tactical/TacticalMetricsSummary';
+import { PoolSelector } from '@/components/tactical/PoolSelector';
+import { 
+  TacticalPlan, 
+  TacticalSlot, 
+  TacticalPlannerState, 
+  PoolType 
+} from '@/types/scheduler';
+import { tacticalPlannerMockData } from '@/mocks/tacticalPlannerData';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export function SmartPlannerPage() {
-  // Estado principal
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
-  const [dispatches, setDispatches] = useState<ScheduledDispatch[]>(
-    schedulerMockData.dispatches
-  );
-  const [selectedDispatch, setSelectedDispatch] = useState<ScheduledDispatch | undefined>();
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
+  // Estado do Plano Tático
+  const [state, setState] = useState<TacticalPlannerState>({
+    selectedDate: new Date().toISOString().split('T')[0],
+    currentPlan: tacticalPlannerMockData.plan,
+    pools: tacticalPlannerMockData.pools,
+    segments: tacticalPlannerMockData.segments,
+    templates: tacticalPlannerMockData.templates,
+    weeklyCoverage: tacticalPlannerMockData.weeklyCoverage,
+    selectedSlot: undefined,
+    sidebarTab: 'audiences',
+    draggedItem: undefined
+  });
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   const { toast } = useToast();
 
-  // Validação em tempo real
-  const validation: ValidationResult = React.useMemo(() => {
-    const errors = [];
-    const warnings = [];
-    
-    // Mapear assuntos para detectar duplicatas
-    const subjectMap = new Map<string, string[]>();
-    
-    dispatches.forEach(dispatch => {
-      const subject = dispatch.customSubject || dispatch.template?.subject;
-      
-      // Verificar template
-      if (!dispatch.template) {
-        errors.push({
-          id: `missing-template-${dispatch.id}`,
-          type: 'missing_template' as const,
-          message: `Disparo às ${dispatch.timeSlot} sem template`,
-          dispatchId: dispatch.id
-        });
-      }
-      
-      // Verificar segmento
-      if (!dispatch.segment) {
-        errors.push({
-          id: `missing-segment-${dispatch.id}`,
-          type: 'missing_segment' as const,
-          message: `Disparo às ${dispatch.timeSlot} sem segmento`,
-          dispatchId: dispatch.id
-        });
-      }
-      
-      // Mapear assuntos
-      if (subject) {
-        if (!subjectMap.has(subject)) {
-          subjectMap.set(subject, []);
-        }
-        subjectMap.get(subject)!.push(dispatch.id);
-      }
-      
-      // Verificar status do segmento
-      if (dispatch.segment?.status === 'cooldown') {
-        warnings.push({
-          id: `cooldown-${dispatch.id}`,
-          type: 'cooldown_violation' as const,
-          message: `Segmento "${dispatch.segment.name}" em cooldown`,
-          dispatchId: dispatch.id
-        });
-      }
-      
-      if (dispatch.segment?.status === 'frequency_cap') {
-        warnings.push({
-          id: `frequency-${dispatch.id}`,
-          type: 'cooldown_violation' as const,
-          message: `Segmento "${dispatch.segment.name}" com limite de frequência`,
-          dispatchId: dispatch.id
-        });
-      }
-    });
-    
-    // Detectar assuntos duplicados
-    let duplicateCount = 0;
-    subjectMap.forEach((dispatchIds, subject) => {
-      if (dispatchIds.length > 1) {
-        duplicateCount += dispatchIds.length;
-        warnings.push({
-          id: `duplicate-${subject}`,
-          type: 'duplicate_subject' as const,
-          message: `Assunto "${subject}" usado em ${dispatchIds.length} disparos`,
-          dispatchId: dispatchIds[0],
-          relatedDispatches: dispatchIds
-        });
-      }
-    });
-    
-    const templatesValidated = dispatches.filter(d => d.template).length;
-    const segmentsAssigned = dispatches.filter(d => d.segment).length;
-    const timeSlots = new Set(dispatches.map(d => d.timeSlot)).size;
-    
-    return {
-      hasErrors: errors.length > 0,
-      hasWarnings: warnings.length > 0,
-      errors,
-      warnings,
-      summary: {
-        templatesValidated,
-        segmentsAssigned,
-        duplicateSubjects: duplicateCount,
-        distinctTimeSlots: timeSlots,
-        totalDispatches: dispatches.length
-      }
-    };
-  }, [dispatches]);
-
   // Manipuladores de eventos
-  const handleCreateDispatch = (timeSlot: string) => {
-    const newDispatch: ScheduledDispatch = {
-      id: `dispatch-${Date.now()}`,
-      date: selectedDate,
-      timeSlot,
-      status: 'draft',
-      position: { row: 0, col: 0 }
-    };
-    
-    setDispatches(prev => [...prev, newDispatch]);
-    setSelectedDispatch(newDispatch);
-    setIsSidebarVisible(true);
+  const handlePoolChange = (pool: PoolType) => {
+    setState(prev => ({
+      ...prev,
+      currentPlan: {
+        ...prev.currentPlan,
+        defaultPool: pool
+      }
+    }));
     
     toast({
-      title: "Novo disparo criado",
-      description: `Disparo criado para ${timeSlot}. Configure o template e segmento.`,
+      title: "Pool padrão alterado",
+      description: `Pool padrão do dia alterado para ${pool}`,
     });
   };
 
-  const handleDispatchSelect = (dispatch: ScheduledDispatch) => {
-    setSelectedDispatch(dispatch);
-    setIsSidebarVisible(true);
-  };
-
-  const handleDispatchUpdate = (updatedDispatch: ScheduledDispatch) => {
-    setDispatches(prev => 
-      prev.map(d => d.id === updatedDispatch.id ? updatedDispatch : d)
-    );
-    setSelectedDispatch(updatedDispatch);
-  };
-
-  const handleDispatchDelete = (id: string) => {
-    setDispatches(prev => prev.filter(d => d.id !== id));
-    if (selectedDispatch?.id === id) {
-      setSelectedDispatch(undefined);
-      setIsSidebarVisible(false);
-    }
+  const handleSlotUpdate = (slot: TacticalSlot, data: any) => {
+    const { item, type } = data;
     
-    toast({
-      title: "Disparo removido",
-      description: "O disparo foi removido da agenda.",
-    });
-  };
-
-  const handleSaveDispatch = () => {
-    if (selectedDispatch) {
-      const updatedDispatch = {
-        ...selectedDispatch,
-        status: 'scheduled' as const
-      };
-      handleDispatchUpdate(updatedDispatch);
+    setState(prev => {
+      const newSlots = { ...prev.currentPlan.slots };
       
-      toast({
-        title: "Disparo salvo",
-        description: "As configurações foram salvas com sucesso.",
-      });
-    }
+      if (type === 'segment') {
+        newSlots[slot] = {
+          ...newSlots[slot],
+          segment: item,
+          isActive: true
+        };
+      } else if (type === 'template') {
+        newSlots[slot] = {
+          ...newSlots[slot],
+          template: item,
+          isActive: true
+        };
+      }
+      
+      return {
+        ...prev,
+        currentPlan: {
+          ...prev.currentPlan,
+          slots: newSlots
+        }
+      };
+    });
+    
+    toast({
+      title: "Slot atualizado",
+      description: `${type === 'segment' ? 'Segmento' : 'Template'} adicionado ao slot ${slot}`,
+    });
   };
 
-  const handleConfirmAll = async () => {
-    if (validation.hasErrors) {
-      toast({
-        title: "Não é possível confirmar",
-        description: "Corrija os erros antes de agendar todos os disparos.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleSlotClick = (slot: TacticalSlot) => {
+    setState(prev => ({ ...prev, selectedSlot: slot }));
+    setIsSidebarOpen(true);
+  };
 
-    setIsConfirming(true);
+  const handleGenerateVariation = (slot: TacticalSlot) => {
+    toast({
+      title: "Gerando variação",
+      description: `Criando variação do template para ${slot}...`,
+    });
+  };
+
+  const handleReuseTemplate = (slot: TacticalSlot) => {
+    toast({
+      title: "Reutilizando template",
+      description: `Preparando template para reutilização em ${slot}...`,
+    });
+  };
+
+  const handleDuplicateDay = () => {
+    toast({
+      title: "Duplicando dia",
+      description: "Configuração do dia duplicada para o próximo dia útil",
+    });
+  };
+
+  const handleFillNextDay = () => {
+    toast({
+      title: "Preenchendo próximo dia",
+      description: "Aplicando configurações otimizadas para o próximo dia",
+    });
+  };
+
+  const handleSaveDraft = () => {
+    setState(prev => ({
+      ...prev,
+      currentPlan: {
+        ...prev.currentPlan,
+        status: 'draft'
+      }
+    }));
+    
+    toast({
+      title: "Rascunho salvo",
+      description: "Configurações salvas como rascunho",
+    });
+  };
+
+  const handleLaunchDay = async () => {
+    setIsLaunching(true);
     
     try {
       // Simular API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const scheduledDispatches = dispatches.map(d => ({
-        ...d,
-        status: 'scheduled' as const
+      setState(prev => ({
+        ...prev,
+        currentPlan: {
+          ...prev.currentPlan,
+          status: 'launched'
+        }
       }));
       
-      setDispatches(scheduledDispatches);
-      
       toast({
-        title: "Disparos agendados!",
-        description: `${dispatches.length} disparos foram agendados com sucesso.`,
+        title: "Dia lançado!",
+        description: "Plano tático executado com sucesso",
         duration: 5000
       });
     } catch (error) {
       toast({
-        title: "Erro ao agendar",
+        title: "Erro ao lançar",
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive"
       });
     } finally {
-      setIsConfirming(false);
+      setIsLaunching(false);
     }
   };
 
-  const handleSelectDispatchFromValidation = (dispatchId: string) => {
-    const dispatch = dispatches.find(d => d.id === dispatchId);
-    if (dispatch) {
-      handleDispatchSelect(dispatch);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Header */}
+    <div className="min-h-screen bg-background">
+      {/* Header Tático */}
       <div className="border-b border-border bg-card">
         <div className="p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Calendar className="h-8 w-8 text-primary" />
-                Agenda de Disparos
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Projeto X • {new Date(selectedDate).toLocaleDateString('pt-BR', { 
-                  weekday: 'long', 
-                  day: 'numeric', 
-                  month: 'long',
-                  year: 'numeric'
-                })}
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                  <Calendar className="h-8 w-8 text-primary" />
+                  Plano Tático — {state.currentPlan.dayOfWeek}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {new Date(state.selectedDate).toLocaleDateString('pt-BR', { 
+                    day: 'numeric', 
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
+              <Button variant="outline" onClick={handleDuplicateDay}>
+                <Copy className="h-4 w-4 mr-2" />
+                📑 Duplicar Dia
               </Button>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Configurações
+              
+              <Button variant="outline" onClick={handleFillNextDay}>
+                <ArrowRight className="h-4 w-4 mr-2" />
+                ➡ Preencher Próximo Dia
               </Button>
-              <Button onClick={() => handleCreateDispatch('09:00')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Disparo
+              
+              <PoolSelector
+                pools={state.pools}
+                selectedPool={state.currentPlan.defaultPool}
+                onPoolChange={handlePoolChange}
+              />
+              
+              <Button variant="outline" onClick={handleSaveDraft}>
+                <Save className="h-4 w-4 mr-2" />
+                💾 Salvar Rascunho
+              </Button>
+              
+              <Button 
+                onClick={handleLaunchDay}
+                disabled={isLaunching}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isLaunching ? 'Lançando...' : '📤 Lançar Dia'}
               </Button>
             </div>
           </div>
@@ -265,119 +224,63 @@ export function SmartPlannerPage() {
       </div>
 
       {/* Conteúdo Principal */}
-      <div className="flex-1 p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
-          {/* Stats Cards */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Send className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{dispatches.length}</p>
-                  <p className="text-sm text-muted-foreground">Disparos</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-success/10 rounded-lg">
-                  <Clock className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{dispatches.filter(d => d.status === 'scheduled').length}</p>
-                  <p className="text-sm text-muted-foreground">Agendados</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-info/10 rounded-lg">
-                  <span className="text-lg">👥</span>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {dispatches.reduce((sum, d) => sum + (d.predictedClicks || 0), 0).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Cliques prev.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-warning/10 rounded-lg">
-                  <span className="text-lg">💰</span>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    R$ {dispatches.reduce((sum, d) => sum + (d.predictedRevenue || 0), 0).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Receita prev.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Timeline Grid */}
-        <Card>
+      <div className="p-6">
+        {/* Grade Tática */}
+        <Card className="mb-6">
           <CardContent className="p-6">
-            <TimelineGrid
-              date={selectedDate}
-              dispatches={dispatches}
-              selectedDispatch={selectedDispatch}
-              onDispatchSelect={handleDispatchSelect}
-              onDispatchUpdate={handleDispatchUpdate}
-              onDispatchDelete={handleDispatchDelete}
-              onCreateDispatch={handleCreateDispatch}
+            <TacticalGrid
+              plan={state.currentPlan}
+              onSlotUpdate={handleSlotUpdate}
+              onSlotClick={handleSlotClick}
+              onGenerateVariation={handleGenerateVariation}
+              onReuseTemplate={handleReuseTemplate}
+              draggedItem={state.draggedItem}
             />
           </CardContent>
         </Card>
+
+        {/* Botão para abrir sidebar em mobile */}
+        <div className="lg:hidden mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsSidebarOpen(true)}
+            className="w-full"
+          >
+            Abrir Configurações
+          </Button>
+        </div>
       </div>
 
-      {/* Sidebar */}
-      <QuickConfigSidebar
-        dispatch={selectedDispatch}
-        isVisible={isSidebarVisible}
-        onClose={() => {
-          setIsSidebarVisible(false);
-          setSelectedDispatch(undefined);
-        }}
-        onUpdate={handleDispatchUpdate}
-        onSave={handleSaveDispatch}
-        templates={schedulerMockData.templates}
-        segments={schedulerMockData.segments}
+      {/* Sidebar Tático */}
+      <TacticalSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        segments={state.segments}
+        templates={state.templates}
+        weeklyCoverage={state.weeklyCoverage}
+        activeTab={state.sidebarTab}
+        onTabChange={(tab) => setState(prev => ({ ...prev, sidebarTab: tab }))}
       />
 
-      {/* Footer de Validação */}
-      <ValidationFooter
-        validation={validation}
-        dispatches={dispatches}
-        onConfirmAll={handleConfirmAll}
-        onSelectDispatch={handleSelectDispatchFromValidation}
-        isConfirming={isConfirming}
-      />
+      {/* Botão flutuante para sidebar (desktop) */}
+      <div className="hidden lg:block fixed right-6 top-1/2 transform -translate-y-1/2 z-30">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsSidebarOpen(true)}
+          className="bg-card shadow-lg"
+        >
+          Configurar
+        </Button>
+      </div>
 
-      {/* Overlay quando sidebar está aberto */}
-      {isSidebarVisible && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40"
-          onClick={() => {
-            setIsSidebarVisible(false);
-            setSelectedDispatch(undefined);
-          }}
-        />
-      )}
+      {/* Footer de Métricas */}
+      <div className="fixed bottom-0 left-0 right-0 z-20">
+        <TacticalMetricsSummary metrics={state.currentPlan.metrics} />
+      </div>
+
+      {/* Espaçador para o footer fixo */}
+      <div className="h-24"></div>
     </div>
   );
 }

@@ -13,11 +13,14 @@ export const mockTemplates: DispatchTemplate[] = [
     htmlContent: '<html>...</html>',
     category: 'promocional',
     lastUsed: '2024-11-20',
+    score: 'star',
     metrics: {
       ctr: 3.2,
       openRate: 24.5,
       clicks: 1847,
-      sent: 57821
+      sent: 57821,
+      predictedRevenue: 18560,
+      spamRisk: 0.1
     },
     thumbnail: 'https://via.placeholder.com/200x150/10B981/ffffff?text=Black+Friday'
   },
@@ -33,11 +36,14 @@ export const mockTemplates: DispatchTemplate[] = [
     htmlContent: '<html>...</html>',
     category: 'newsletter',
     lastUsed: '2024-11-18',
+    score: 'star',
     metrics: {
       ctr: 2.8,
       openRate: 31.2,
       clicks: 987,
-      sent: 35234
+      sent: 35234,
+      predictedRevenue: 4235,
+      spamRisk: 0.05
     },
     thumbnail: 'https://via.placeholder.com/200x150/FDBA74/ffffff?text=Newsletter'
   },
@@ -53,11 +59,14 @@ export const mockTemplates: DispatchTemplate[] = [
     htmlContent: '<html>...</html>',
     category: 'automacao',
     lastUsed: '2024-11-19',
+    score: 'new',
     metrics: {
       ctr: 8.7,
       openRate: 45.3,
       clicks: 2341,
-      sent: 26892
+      sent: 26892,
+      predictedRevenue: 2890,
+      spamRisk: 0.2
     },
     thumbnail: 'https://via.placeholder.com/200x150/3B82F6/ffffff?text=Carrinho'
   },
@@ -73,11 +82,14 @@ export const mockTemplates: DispatchTemplate[] = [
     htmlContent: '<html>...</html>',
     category: 'transacional',
     lastUsed: '2024-11-17',
+    score: 'warning',
     metrics: {
       ctr: 12.4,
       openRate: 67.8,
       clicks: 1543,
-      sent: 12456
+      sent: 12456,
+      predictedRevenue: 5200,
+      spamRisk: 0.3
     },
     thumbnail: 'https://via.placeholder.com/200x150/EF4444/ffffff?text=Estoque'
   },
@@ -93,11 +105,14 @@ export const mockTemplates: DispatchTemplate[] = [
     htmlContent: '<html>...</html>',
     category: 'promocional',
     lastUsed: '2024-11-21',
+    score: 'star',
     metrics: {
       ctr: 4.1,
       openRate: 28.9,
       clicks: 2156,
-      sent: 52643
+      sent: 52643,
+      predictedRevenue: 12800,
+      spamRisk: 0.15
     },
     thumbnail: 'https://via.placeholder.com/200x150/8B5CF6/ffffff?text=Cyber+Monday'
   }

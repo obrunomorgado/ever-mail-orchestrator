@@ -1,3 +1,37 @@
+// Tactical Planner Types
+export type TacticalSlot = '06h' | '09h' | '12h' | '15h' | '18h' | '21h';
+
+export type PoolType = 'Pool A' | 'Pool B' | 'Pool C';
+
+export interface Pool {
+  id: string;
+  name: PoolType;
+  capacity: number;
+  currentUsage: number;
+  color: string;
+  priority: number;
+}
+
+export type SegmentHealth = 'healthy' | 'fatigued' | 'spam_risk';
+export type TemplateScore = 'star' | 'warning' | 'new';
+
+export interface SegmentMetrics {
+  expectedSends: number;
+  interpolated: number;
+  outOfBase: number;
+  weeklyCoverage: number;
+}
+
+export interface TacticalSegment {
+  id: string;
+  name: string;
+  size: number;
+  health: SegmentHealth;
+  metrics: SegmentMetrics;
+  lastUsed: string;
+  tags: string[];
+}
+
 export interface DispatchTemplate {
   id: string;
   name: string;
@@ -10,13 +44,47 @@ export interface DispatchTemplate {
   htmlContent: string;
   category: string;
   lastUsed: string;
+  score: TemplateScore;
   metrics: {
     ctr: number;
     openRate: number;
     clicks: number;
     sent: number;
+    predictedRevenue: number;
+    spamRisk: number;
   };
   thumbnail: string;
+}
+
+export interface TacticalSlotData {
+  slot: TacticalSlot;
+  segment?: TacticalSegment;
+  template?: DispatchTemplate;
+  pool: PoolType;
+  customSubject?: string;
+  isActive: boolean;
+}
+
+export interface WeeklyCoverageData {
+  totalBaseReached: number;
+  interpolationRate: number;
+  overlapMatrix: OverlapMatrix;
+  baseHealth: number;
+}
+
+export interface OverlapMatrix {
+  [segmentId: string]: {
+    [segmentId: string]: number; // percentage overlap
+  };
+}
+
+export interface DayMetrics {
+  totalPlannedSends: number;
+  baseReachedPercent: number;
+  interpolationPercent: number;
+  predictedClicks: number;
+  predictedRevenue: number;
+  clickGoalProgress: number;
 }
 
 export interface QuickSegment {
@@ -29,6 +97,16 @@ export interface QuickSegment {
   status: 'active' | 'cooldown' | 'frequency_cap';
   cooldownUntil?: string;
   frequencyViolation?: string;
+}
+
+export interface TacticalPlan {
+  id: string;
+  date: string;
+  dayOfWeek: string;
+  defaultPool: PoolType;
+  slots: Record<TacticalSlot, TacticalSlotData>;
+  metrics: DayMetrics;
+  status: 'draft' | 'scheduled' | 'launched';
 }
 
 export interface ScheduledDispatch {
@@ -81,6 +159,21 @@ export interface TimeSlot {
   minute: number;
   label: string;
   isAvailable: boolean;
+}
+
+export interface TacticalPlannerState {
+  selectedDate: string;
+  currentPlan: TacticalPlan;
+  pools: Pool[];
+  segments: TacticalSegment[];
+  templates: DispatchTemplate[];
+  weeklyCoverage: WeeklyCoverageData;
+  selectedSlot?: TacticalSlot;
+  sidebarTab: 'audiences' | 'templates' | 'insights';
+  draggedItem?: {
+    type: 'segment' | 'template';
+    data: TacticalSegment | DispatchTemplate;
+  };
 }
 
 export interface SchedulerState {
