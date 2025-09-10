@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { Copy, ArrowRight, Save, Send, Calendar } from 'lucide-react';
+import { Copy, ArrowRight, Save, Send, Calendar, Grid, CalendarDays } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TacticalGrid } from '@/components/tactical/TacticalGrid';
 import { TacticalSidebar } from '@/components/tactical/TacticalSidebar';
 import { TacticalMetricsSummary } from '@/components/tactical/TacticalMetricsSummary';
+import { TacticalCalendarMetrics } from '@/components/tactical/TacticalCalendarMetrics';
 import { PoolSelector } from '@/components/tactical/PoolSelector';
+import { FullScreenCalendar } from '@/components/ui/fullscreen-calendar';
 import { 
   TacticalPlan, 
   TacticalSlot, 
   TacticalPlannerState, 
-  PoolType 
+  PoolType,
+  TacticalEvent,
+  TacticalCalendarData
 } from '@/types/scheduler';
 import { tacticalPlannerMockData } from '@/mocks/tacticalPlannerData';
+import { tacticalCalendarMockData } from '@/mocks/tacticalCalendarData';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +32,12 @@ export function SmartPlannerPage() {
     weeklyCoverage: tacticalPlannerMockData.weeklyCoverage,
     selectedSlot: undefined,
     sidebarTab: 'audiences',
-    draggedItem: undefined
+    draggedItem: undefined,
+    // New calendar state
+    calendarData: tacticalCalendarMockData.calendarData,
+    monthlyMetrics: tacticalCalendarMockData.monthlyMetrics,
+    selectedMonth: new Date(),
+    viewMode: 'monthly'
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -150,7 +160,7 @@ export function SmartPlannerPage() {
       }));
       
       toast({
-        title: "Dia lançado!",
+        title: state.viewMode === 'monthly' ? "Mês lançado!" : "Dia lançado!",
         description: "Plano tático executado com sucesso",
         duration: 5000
       });
@@ -163,6 +173,32 @@ export function SmartPlannerPage() {
     } finally {
       setIsLaunching(false);
     }
+  };
+
+  // Calendar event handlers
+  const handleEventClick = (event: TacticalEvent) => {
+    toast({
+      title: "Evento selecionado",
+      description: `${event.name} - ${event.campaigns} campanhas`,
+    });
+  };
+
+  const handleDayClick = (day: Date) => {
+    setState(prev => ({ ...prev, selectedDate: day.toISOString().split('T')[0] }));
+  };
+
+  const handleCreateEvent = (day: Date) => {
+    toast({
+      title: "Criando novo evento",
+      description: `Novo evento para ${day.toLocaleDateString('pt-BR')}`,
+    });
+  };
+
+  const toggleViewMode = () => {
+    setState(prev => ({
+      ...prev,
+      viewMode: prev.viewMode === 'daily' ? 'monthly' : 'daily'
+    }));
   };
 
 
@@ -189,15 +225,33 @@ export function SmartPlannerPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={handleDuplicateDay}>
-                <Copy className="h-4 w-4 mr-2" />
-                📑 Duplicar Dia
+              <Button variant="outline" onClick={toggleViewMode}>
+                {state.viewMode === 'monthly' ? (
+                  <>
+                    <Grid className="h-4 w-4 mr-2" />
+                    📅 Visão Diária
+                  </>
+                ) : (
+                  <>
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    🗓 Visão Mensal
+                  </>
+                )}
               </Button>
-              
-              <Button variant="outline" onClick={handleFillNextDay}>
-                <ArrowRight className="h-4 w-4 mr-2" />
-                ➡ Preencher Próximo Dia
-              </Button>
+
+              {state.viewMode === 'daily' && (
+                <>
+                  <Button variant="outline" onClick={handleDuplicateDay}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    📑 Duplicar Dia
+                  </Button>
+                  
+                  <Button variant="outline" onClick={handleFillNextDay}>
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    ➡ Preencher Próximo Dia
+                  </Button>
+                </>
+              )}
               
               <PoolSelector
                 pools={state.pools}
@@ -216,7 +270,7 @@ export function SmartPlannerPage() {
                 className="bg-primary hover:bg-primary/90"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {isLaunching ? 'Lançando...' : '📤 Lançar Dia'}
+                {isLaunching ? 'Lançando...' : (state.viewMode === 'monthly' ? '📤 Lançar Mês' : '📤 Lançar Dia')}
               </Button>
             </div>
           </div>
@@ -225,19 +279,33 @@ export function SmartPlannerPage() {
 
       {/* Conteúdo Principal */}
       <div className="p-6">
-        {/* Grade Tática */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <TacticalGrid
-              plan={state.currentPlan}
-              onSlotUpdate={handleSlotUpdate}
-              onSlotClick={handleSlotClick}
-              onGenerateVariation={handleGenerateVariation}
-              onReuseTemplate={handleReuseTemplate}
-              draggedItem={state.draggedItem}
-            />
-          </CardContent>
-        </Card>
+        {state.viewMode === 'monthly' ? (
+          /* Calendário Mensal */
+          <Card className="mb-6">
+            <CardContent className="p-0">
+              <FullScreenCalendar
+                data={state.calendarData}
+                onEventClick={handleEventClick}
+                onDayClick={handleDayClick}
+                onCreateEvent={handleCreateEvent}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          /* Grade Tática Diária */
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <TacticalGrid
+                plan={state.currentPlan}
+                onSlotUpdate={handleSlotUpdate}
+                onSlotClick={handleSlotClick}
+                onGenerateVariation={handleGenerateVariation}
+                onReuseTemplate={handleReuseTemplate}
+                draggedItem={state.draggedItem}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Botão para abrir sidebar em mobile */}
         <div className="lg:hidden mb-4">
@@ -276,7 +344,11 @@ export function SmartPlannerPage() {
 
       {/* Footer de Métricas */}
       <div className="fixed bottom-0 left-0 right-0 z-20">
-        <TacticalMetricsSummary metrics={state.currentPlan.metrics} />
+        {state.viewMode === 'monthly' ? (
+          <TacticalCalendarMetrics metrics={state.monthlyMetrics} />
+        ) : (
+          <TacticalMetricsSummary metrics={state.currentPlan.metrics} />
+        )}
       </div>
 
       {/* Espaçador para o footer fixo */}

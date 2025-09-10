@@ -1,0 +1,178 @@
+import { TacticalCalendarData, TacticalEvent, MonthlyMetrics } from '@/types/scheduler';
+
+// Mock tactical events for calendar view
+const tacticalEvents: TacticalEvent[] = [
+  {
+    id: 'evt-001',
+    name: 'Black Friday Launch',
+    time: '09:00',
+    datetime: '2025-01-15T09:00:00',
+    status: 'active',
+    campaigns: 3,
+    revenue: 45000,
+    contacts: 12000,
+    category: 'promotion',
+    pool: 'Pool A',
+  },
+  {
+    id: 'evt-002',
+    name: 'Newsletter Semanal',
+    time: '08:00',
+    datetime: '2025-01-15T08:00:00',
+    status: 'completed',
+    campaigns: 1,
+    revenue: 8500,
+    contacts: 25000,
+    category: 'newsletter',
+    pool: 'Pool B',
+  },
+  {
+    id: 'evt-003',
+    name: 'Teste A/B Subject',
+    time: '14:30',
+    datetime: '2025-01-18T14:30:00',
+    status: 'draft',
+    campaigns: 2,
+    revenue: 12000,
+    contacts: 5000,
+    category: 'test',
+    pool: 'Pool A',
+  },
+  {
+    id: 'evt-004',
+    name: 'Reativação de Leads',
+    time: '16:00',
+    datetime: '2025-01-18T16:00:00',
+    status: 'active',
+    campaigns: 4,
+    revenue: 32000,
+    contacts: 8000,
+    category: 'reactivation',
+    pool: 'Pool C',
+  },
+  {
+    id: 'evt-005',
+    name: 'Campanha de Fidelidade',
+    time: '10:15',
+    datetime: '2025-01-22T10:15:00',
+    status: 'completed',
+    campaigns: 2,
+    revenue: 18500,
+    contacts: 15000,
+    category: 'loyalty',
+    pool: 'Pool B',
+  },
+  {
+    id: 'evt-006',
+    name: 'Lançamento Produto',
+    time: '11:00',
+    datetime: '2025-01-22T11:00:00',
+    status: 'active',
+    campaigns: 5,
+    revenue: 67000,
+    contacts: 20000,
+    category: 'launch',
+    pool: 'Pool A',
+  },
+  {
+    id: 'evt-007',
+    name: 'Follow-up Carrinho',
+    time: '15:45',
+    datetime: '2025-01-25T15:45:00',
+    status: 'draft',
+    campaigns: 3,
+    revenue: 22000,
+    contacts: 7500,
+    category: 'followup',
+    pool: 'Pool B',
+  },
+  {
+    id: 'evt-008',
+    name: 'Pesquisa Satisfação',
+    time: '09:30',
+    datetime: '2025-01-28T09:30:00',
+    status: 'active',
+    campaigns: 1,
+    revenue: 0,
+    contacts: 30000,
+    category: 'survey',
+    pool: 'Pool C',
+  },
+  {
+    id: 'evt-009',
+    name: 'Promoção Flash',
+    time: '13:00',
+    datetime: '2025-01-29T13:00:00',
+    status: 'completed',
+    campaigns: 2,
+    revenue: 28000,
+    contacts: 18000,
+    category: 'promotion',
+    pool: 'Pool A',
+  },
+  {
+    id: 'evt-010',
+    name: 'Webinar Educativo',
+    time: '19:00',
+    datetime: '2025-01-30T19:00:00',
+    status: 'draft',
+    campaigns: 1,
+    revenue: 5000,
+    contacts: 2500,
+    category: 'education',
+    pool: 'Pool B',
+  },
+];
+
+// Group events by day
+export const mockCalendarData: TacticalCalendarData[] = [
+  {
+    day: new Date('2025-01-15'),
+    events: [tacticalEvents[0], tacticalEvents[1]],
+  },
+  {
+    day: new Date('2025-01-18'),
+    events: [tacticalEvents[2], tacticalEvents[3]],
+  },
+  {
+    day: new Date('2025-01-22'),
+    events: [tacticalEvents[4], tacticalEvents[5]],
+  },
+  {
+    day: new Date('2025-01-25'),
+    events: [tacticalEvents[6]],
+  },
+  {
+    day: new Date('2025-01-28'),
+    events: [tacticalEvents[7]],
+  },
+  {
+    day: new Date('2025-01-29'),
+    events: [tacticalEvents[8]],
+  },
+  {
+    day: new Date('2025-01-30'),
+    events: [tacticalEvents[9]],
+  },
+];
+
+// Monthly metrics
+export const mockMonthlyMetrics: MonthlyMetrics = {
+  totalEvents: 10,
+  totalCampaigns: 24,
+  totalRevenue: 238000,
+  totalContacts: 143000,
+  activeEvents: 4,
+  completedEvents: 4,
+  draftEvents: 2,
+  weeklyDistribution: [
+    { week: 3, events: 4, revenue: 97500 },
+    { week: 4, events: 6, revenue: 140500 },
+  ],
+};
+
+export const tacticalCalendarMockData = {
+  calendarData: mockCalendarData,
+  monthlyMetrics: mockMonthlyMetrics,
+  events: tacticalEvents,
+};

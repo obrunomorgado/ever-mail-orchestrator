@@ -161,6 +161,42 @@ export interface TimeSlot {
   isAvailable: boolean;
 }
 
+// Calendar Types for Monthly View
+export interface TacticalEvent {
+  id: string;
+  name: string;
+  time: string;
+  datetime: string;
+  status: 'active' | 'completed' | 'draft';
+  campaigns: number;
+  revenue: number;
+  contacts: number;
+  category: string;
+  segment?: TacticalSegment;
+  template?: DispatchTemplate;
+  pool: PoolType;
+}
+
+export interface TacticalCalendarData {
+  day: Date;
+  events: TacticalEvent[];
+}
+
+export interface MonthlyMetrics {
+  totalEvents: number;
+  totalCampaigns: number;
+  totalRevenue: number;
+  totalContacts: number;
+  activeEvents: number;
+  completedEvents: number;
+  draftEvents: number;
+  weeklyDistribution: {
+    week: number;
+    events: number;
+    revenue: number;
+  }[];
+}
+
 export interface TacticalPlannerState {
   selectedDate: string;
   currentPlan: TacticalPlan;
@@ -174,6 +210,11 @@ export interface TacticalPlannerState {
     type: 'segment' | 'template';
     data: TacticalSegment | DispatchTemplate;
   };
+  // New calendar state
+  calendarData: TacticalCalendarData[];
+  monthlyMetrics: MonthlyMetrics;
+  selectedMonth: Date;
+  viewMode: 'daily' | 'monthly';
 }
 
 export interface SchedulerState {
