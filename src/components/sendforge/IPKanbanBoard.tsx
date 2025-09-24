@@ -185,16 +185,16 @@ export function IPKanbanBoard({ pools }: IPKanbanBoardProps) {
             <div className="space-y-1">
               <div className="font-medium">Regras de Promoção</div>
               <div className="text-muted-foreground">
-                • Reputação > 80 por 48h<br/>
-                • Bounce < 2% e Spam < 0.3%<br/>
+                • Reputação &gt; 80 por 48h<br/>
+                • Bounce &lt; 2% e Spam &lt; 0.3%<br/>
                 • Volume estável
               </div>
             </div>
             <div className="space-y-1">
               <div className="font-medium">Regras de Quarentena</div>
               <div className="text-muted-foreground">
-                • Bounce > 5% ou Spam > 1%<br/>
-                • Reputação < 40<br/>
+                • Bounce &gt; 5% ou Spam &gt; 1%<br/>
+                • Reputação &lt; 40<br/>
                 • Blacklist detectado
               </div>
             </div>

@@ -27,6 +27,7 @@ import Audiences from "./pages/Audiences";
 import Automations from "./pages/Automations";
 import AutomationsFlow from "./pages/AutomationsFlow";
 import WarmUp from "./pages/WarmUp";
+import SendForge from "./pages/SendForge";
 import Guardrails from "./pages/Guardrails";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -63,6 +64,7 @@ const App = () => (
                   <Route path="/segments" element={<Segments />} />
                   <Route path="/heatmap" element={<HeatMapPanel />} />
                   <Route path="/warmup" element={<WarmUp />} />
+                  <Route path="/sendforge" element={<SendForge />} />
                   <Route path="/automation" element={<Automations />} />
                   <Route path="/cleaning" element={<ListCleaningPage />} />
                   <Route path="/macros" element={<MacrosPage />} />
