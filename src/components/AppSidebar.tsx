@@ -51,6 +51,7 @@ const audienceItems = [
 const toolsItems = [
   { title: "Agenda de Disparos", url: "/planner-new", icon: Calendar },
   { title: "Warm-up", url: "/warmup", icon: Thermometer },
+  { title: "SendForge", url: "/sendforge", icon: Send },
   { title: "Automação", url: "/automation", icon: GitBranch },
   { title: "Limpeza", url: "/cleaning", icon: Trash2 },
   { title: "Macros", url: "/macros", icon: FileText },
